@@ -3,6 +3,10 @@
 ## Overview
 Public API documentation, OpenAPI specification, SDKs, and examples for the CSV2GEO geocoding service.
 
+**Company:** Scale Campaign
+**Product:** CSV2GEO
+**Contact:** admin@csv2geo.com
+
 ## Git Workflow
 **Never work directly on `main` branch.** Always use a feature branch (e.g., `ivan`).
 
@@ -83,8 +87,39 @@ npx @openapitools/openapi-generator-cli generate \
 ## Key Files
 - `openapi.yaml` - API specification (edit this first when adding endpoints)
 - `README.md` - What users see on GitHub
-- `docs/` - Extended documentation
+- `docs/index.html` - Scalar API documentation (auto-generated from openapi.yaml)
 - `examples/` - Working code samples
+
+## API Documentation (Scalar)
+
+We use [Scalar](https://github.com/scalar/scalar) to render interactive API documentation from `openapi.yaml`.
+
+### Local Development
+
+```bash
+# Start local server
+npm run dev
+
+# Open docs in browser
+open http://localhost:3000/docs/
+```
+
+### How It Works
+- `docs/index.html` loads Scalar from CDN
+- Scalar reads `openapi.yaml` and generates interactive docs
+- Users can try API endpoints directly in the browser
+- Code examples auto-generated in 20+ languages
+
+### Hosting Options
+- **GitHub Pages** - Free, auto-deploys from main branch
+- **Cloudflare Pages** - Free, fast CDN
+- **Vercel** - Free tier available
+- **Custom domain** - api.csv2geo.com/docs or docs.csv2geo.com
+
+### Updating Documentation
+1. Edit `openapi.yaml` (add endpoints, update schemas)
+2. Refresh browser - Scalar auto-updates
+3. Commit and push
 
 ## Related Projects
 - [csv2geo](https://csv2geo.com) - Main geocoding application

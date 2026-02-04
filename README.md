@@ -53,10 +53,23 @@ curl "https://api.csv2geo.com/v1/geocode?q=1600+Pennsylvania+Ave,+Washington+DC&
 
 ## Documentation
 
-- [API Reference](docs/endpoints/) - Full endpoint documentation
-- [Authentication](docs/authentication.md) - API key usage
-- [Error Codes](docs/errors.md) - Error handling
-- [Examples](examples/) - Code samples in multiple languages
+### Interactive API Docs (Scalar)
+
+View the full interactive API documentation:
+
+```bash
+# Clone and run locally
+git clone https://github.com/acenji/csv2geo-api.git
+cd csv2geo-api
+npm run dev
+# Open http://localhost:3000/docs/
+```
+
+Or view the OpenAPI spec directly: [openapi.yaml](openapi.yaml)
+
+### Resources
+- [Code Examples](examples/) - Python, Node.js, PHP, Go, cURL
+- [OpenAPI Spec](openapi.yaml) - Import into Postman or any API tool
 
 ## SDKs
 

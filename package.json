@@ -1,0 +1,22 @@
+{
+  "name": "csv2geo-api",
+  "version": "1.0.0",
+  "description": "CSV2GEO API documentation and SDKs",
+  "scripts": {
+    "dev": "npx serve . -p 3000",
+    "docs": "npx serve . -p 3000 -o docs"
+  },
+  "keywords": [
+    "geocoding",
+    "api",
+    "csv2geo",
+    "openapi",
+    "documentation"
+  ],
+  "author": "Scale Campaign",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/acenji/csv2geo-api.git"
+  }
+}
