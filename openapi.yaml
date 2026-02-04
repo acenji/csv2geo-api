@@ -18,9 +18,9 @@ info:
     Get your API key at [csv2geo.com](https://csv2geo.com)
   version: 1.0.0
   contact:
-    name: CSV2GEO Support
+    name: Scale Campaign
     url: https://csv2geo.com
-    email: support@csv2geo.com
+    email: admin@csv2geo.com
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT

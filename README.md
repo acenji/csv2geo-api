@@ -100,8 +100,12 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/acenji/csv2geo-api/issues)
-- **Email**: support@csv2geo.com
+- **Email**: admin@csv2geo.com
 - **Documentation**: [docs.csv2geo.com](https://docs.csv2geo.com)
+
+## About
+
+CSV2GEO is a product of [Scale Campaign](https://scalecampaign.com). This API documentation and SDKs are open source under the MIT license.
 
 ## License
 

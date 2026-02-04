@@ -119,6 +119,8 @@ We love hearing ideas! When suggesting features:
 ## Questions?
 
 - Open a GitHub issue
-- Email: support@csv2geo.com
+- Email: admin@csv2geo.com
+
+CSV2GEO is a product of [Scale Campaign](https://scalecampaign.com).
 
 Thank you for contributing!
