@@ -1,5 +1,5 @@
 {
-  "name": "csv2geo",
+  "name": "csv2geo-sdk",
   "version": "1.0.0",
   "description": "Node.js SDK for CSV2GEO Geocoding API",
   "main": "src/index.js",

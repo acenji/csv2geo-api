@@ -1,7 +1,7 @@
 # CSV2GEO Node.js SDK
 
-[![npm version](https://img.shields.io/npm/v/csv2geo.svg)](https://www.npmjs.com/package/csv2geo)
-[![Node.js versions](https://img.shields.io/node/v/csv2geo.svg)](https://www.npmjs.com/package/csv2geo)
+[![npm version](https://img.shields.io/npm/v/csv2geo-sdk.svg)](https://www.npmjs.com/package/csv2geo-sdk)
+[![Node.js versions](https://img.shields.io/node/v/csv2geo-sdk.svg)](https://www.npmjs.com/package/csv2geo-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 Official Node.js SDK for the [CSV2GEO Geocoding API](https://csv2geo.com) - fast, accurate geocoding powered by 446M+ addresses worldwide.
@@ -9,13 +9,13 @@ Official Node.js SDK for the [CSV2GEO Geocoding API](https://csv2geo.com) - fast
 ## Installation
 
 ```bash
-npm install csv2geo
+npm install csv2geo-sdk
 ```
 
 ## Quick Start
 
 ```javascript
-const { Client } = require('csv2geo');
+const { Client } = require('csv2geo-sdk');
 
 // Initialize with your API key
 const client = new Client('your_api_key');
@@ -48,7 +48,7 @@ if (result) {
 ### Initialize Client
 
 ```javascript
-const { Client } = require('csv2geo');
+const { Client } = require('csv2geo-sdk');
 
 const client = new Client('your_api_key', {
   baseUrl: 'https://api.csv2geo.com/v1',  // optional
@@ -148,7 +148,7 @@ result.components.country      // "US"
 ## Error Handling
 
 ```javascript
-const { Client, AuthenticationError, RateLimitError, InvalidRequestError } = require('csv2geo');
+const { Client, AuthenticationError, RateLimitError, InvalidRequestError } = require('csv2geo-sdk');
 
 const client = new Client('your_api_key');
 
@@ -184,7 +184,7 @@ With `autoRetry: true` (default), the client automatically waits and retries whe
 Full TypeScript support is included:
 
 ```typescript
-import { Client, GeocodeResult, GeocodeResponse } from 'csv2geo';
+import { Client, GeocodeResult, GeocodeResponse } from 'csv2geo-sdk';
 
 const client = new Client('your_api_key');
 const result: GeocodeResult | null = await client.geocode('123 Main St');
