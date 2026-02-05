@@ -1,0 +1,40 @@
+{
+  "name": "csv2geo",
+  "version": "1.0.0",
+  "description": "Node.js SDK for CSV2GEO Geocoding API",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "src/**/*"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "lint": "eslint src/"
+  },
+  "keywords": [
+    "geocoding",
+    "geocode",
+    "address",
+    "latitude",
+    "longitude",
+    "maps",
+    "csv2geo",
+    "geolocation"
+  ],
+  "author": "Scale Campaign <admin@csv2geo.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acenji/csv2geo-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/acenji/csv2geo-api/issues"
+  },
+  "homepage": "https://csv2geo.com",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0"
+  }
+}
