@@ -123,7 +123,6 @@ open http://localhost:3000/docs/
 
 ## Related Projects
 - [csv2geo](https://csv2geo.com) - Main geocoding application
-- [overture-geocoder](../overture-geocoder) - Backend infrastructure
 
 ## API Base URL
 - **Production**: `https://api.csv2geo.com/v1`
