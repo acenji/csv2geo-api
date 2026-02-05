@@ -2,12 +2,13 @@ openapi: 3.0.3
 info:
   title: CSV2GEO Geocoding API
   description: |
-    Fast, accurate geocoding API powered by 446M+ addresses worldwide.
+    Fast, accurate geocoding API powered by 446M+ addresses and 15M+ places worldwide.
 
     ## Features
     - Forward geocoding (address → coordinates)
     - Reverse geocoding (coordinates → address)
     - Batch processing (up to 10,000 addresses per request)
+    - **Places API** - Search 15.5M+ POIs (businesses, landmarks, restaurants)
     - Global coverage with rooftop-level accuracy
 
     ## Authentication
@@ -22,6 +23,7 @@ info:
     - `forward` - Forward geocoding (address → coordinates)
     - `reverse` - Reverse geocoding (coordinates → address)
     - `batch` - Batch processing (POST endpoints)
+    - `places` - Places/POI search (search, nearby, categories)
 
     ## Rate Limits
     Rate limits are enforced per API key. Check response headers for your current usage:
@@ -59,6 +61,8 @@ tags:
     description: Reverse geocoding - convert coordinates to addresses
   - name: Batch
     description: Batch processing for multiple addresses
+  - name: Places
+    description: Search for points of interest (POIs) - businesses, landmarks, and more
 
 paths:
   /geocode:
@@ -322,6 +326,193 @@ paths:
                     type: string
                     format: date-time
 
+  /places:
+    get:
+      tags:
+        - Places
+      summary: Search places by name
+      description: |
+        Search for points of interest (POIs) by name. Returns businesses, landmarks, and other places matching your query.
+
+        Uses text search to match place names and brand names.
+      operationId: searchPlaces
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query (place name, brand, etc.)
+          schema:
+            type: string
+          example: "starbucks"
+        - name: category
+          in: query
+          required: false
+          description: Filter by category (e.g., "coffee_shop", "restaurant")
+          schema:
+            type: string
+          example: "coffee_shop"
+        - name: country
+          in: query
+          required: false
+          description: Filter by country (ISO 3166-1 alpha-2). Defaults to "US"
+          schema:
+            type: string
+            default: "US"
+          example: "US"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results (1-50)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Successful search response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlacesSearchResponse'
+        '400':
+          description: Bad request - missing query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: missing_query
+                  message: "The 'q' parameter is required for place search"
+                  status: 400
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /places/nearby:
+    get:
+      tags:
+        - Places
+      summary: Find places near a location
+      description: |
+        Search for places within a radius of a given location. Results are sorted by distance from the center point.
+
+        Uses geospatial indexing for efficient nearby searches.
+      operationId: nearbyPlaces
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitude of center point
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          example: 40.7128
+        - name: lng
+          in: query
+          required: true
+          description: Longitude of center point
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          example: -74.0060
+        - name: radius
+          in: query
+          required: false
+          description: Search radius in meters (1-50000). Default is 1000m (1km)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50000
+            default: 1000
+        - name: category
+          in: query
+          required: false
+          description: Filter by category
+          schema:
+            type: string
+          example: "restaurant"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results (1-50)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Successful nearby search response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlacesNearbyResponse'
+        '400':
+          description: Bad request - invalid coordinates or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_coordinates:
+                  summary: Missing coordinates
+                  value:
+                    error:
+                      code: missing_coordinates
+                      message: "Both 'lat' and 'lng' parameters are required"
+                      status: 400
+                invalid_latitude:
+                  summary: Invalid latitude
+                  value:
+                    error:
+                      code: invalid_latitude
+                      message: "Latitude must be a number between -90 and 90"
+                      status: 400
+                invalid_longitude:
+                  summary: Invalid longitude
+                  value:
+                    error:
+                      code: invalid_longitude
+                      message: "Longitude must be a number between -180 and 180"
+                      status: 400
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /places/categories:
+    get:
+      tags:
+        - Places
+      summary: List available place categories
+      description: |
+        Returns all available place categories in the database. Use these values to filter searches by category.
+      operationId: listCategories
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     ApiKeyQuery:
@@ -521,6 +712,129 @@ components:
         credits_remaining:
           type: integer
           example: 9997
+
+    PlaceResult:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Place name
+          example: "Starbucks"
+        location:
+          $ref: '#/components/schemas/Location'
+        category:
+          type: string
+          description: Primary category
+          example: "coffee_shop"
+        categories:
+          type: array
+          description: All categories (primary + alternates)
+          items:
+            type: string
+          example: ["coffee_shop", "cafe", "food_and_drink"]
+        confidence:
+          type: number
+          format: float
+          description: Data confidence score (0-1)
+          example: 0.95
+        address:
+          type: string
+          nullable: true
+          description: Freeform address
+          example: "123 Main St, New York, NY 10001"
+        city:
+          type: string
+          nullable: true
+          example: "New York"
+        state:
+          type: string
+          nullable: true
+          example: "NY"
+        postcode:
+          type: string
+          nullable: true
+          example: "10001"
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+          example: "US"
+        phone:
+          type: string
+          nullable: true
+          description: Primary phone number
+          example: "+1-555-123-4567"
+        website:
+          type: string
+          nullable: true
+          description: Primary website URL
+          example: "https://www.starbucks.com"
+        brand:
+          type: string
+          nullable: true
+          description: Brand name (if applicable)
+          example: "Starbucks"
+        operating_status:
+          type: string
+          nullable: true
+          description: Operating status (e.g., "open", "closed_permanently")
+          example: "open"
+
+    PlacesSearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The search query
+          example: "starbucks"
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceResult'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    PlacesNearbyResponse:
+      type: object
+      properties:
+        query:
+          $ref: '#/components/schemas/PlacesNearbyQuery'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceResult'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    PlacesNearbyQuery:
+      type: object
+      properties:
+        location:
+          $ref: '#/components/schemas/Location'
+        radius:
+          type: integer
+          description: Search radius in meters
+          example: 1000
+        category:
+          type: string
+          nullable: true
+          description: Category filter (if provided)
+          example: "restaurant"
+
+    CategoriesResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          description: List of all available categories
+          items:
+            type: string
+          example: ["coffee_shop", "restaurant", "hotel", "gas_station", "pharmacy"]
+        count:
+          type: integer
+          description: Total number of categories
+          example: 150
+        meta:
+          $ref: '#/components/schemas/Meta'
 
     Error:
       type: object
