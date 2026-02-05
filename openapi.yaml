@@ -9,6 +9,7 @@ info:
     - Reverse geocoding (coordinates → address)
     - Batch processing (up to 10,000 addresses per request)
     - **Places API** - Search 15.5M+ POIs (businesses, landmarks, restaurants)
+    - **Divisions API** - 205K+ administrative boundaries (cities, counties, neighborhoods)
     - Global coverage with rooftop-level accuracy
 
     ## Authentication
@@ -24,6 +25,7 @@ info:
     - `reverse` - Reverse geocoding (coordinates → address)
     - `batch` - Batch processing (POST endpoints)
     - `places` - Places/POI search (search, nearby, categories)
+    - `divisions` - Administrative boundaries (search, contains, subtypes)
 
     ## Rate Limits
     Rate limits are enforced per API key. Check response headers for your current usage:
@@ -63,6 +65,8 @@ tags:
     description: Batch processing for multiple addresses
   - name: Places
     description: Search for points of interest (POIs) - businesses, landmarks, and more
+  - name: Divisions
+    description: Administrative boundaries - cities, counties, neighborhoods, states
 
 paths:
   /geocode:
@@ -513,6 +517,176 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /divisions:
+    get:
+      tags:
+        - Divisions
+      summary: Search divisions by name
+      description: |
+        Search for administrative divisions (cities, counties, neighborhoods) by name.
+        Uses text search to match division names.
+      operationId: searchDivisions
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query (division name)
+          schema:
+            type: string
+          example: "los angeles"
+        - name: subtype
+          in: query
+          required: false
+          description: Filter by division type (locality, county, neighborhood, etc.)
+          schema:
+            type: string
+          example: "locality"
+        - name: country
+          in: query
+          required: false
+          description: Filter by country (ISO 3166-1 alpha-2). Defaults to "US"
+          schema:
+            type: string
+            default: "US"
+          example: "US"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results (1-50)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Successful search response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DivisionsSearchResponse'
+        '400':
+          description: Bad request - missing query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: missing_query
+                  message: "The 'q' parameter is required for division search"
+                  status: 400
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /divisions/contains:
+    get:
+      tags:
+        - Divisions
+      summary: Find divisions near a location
+      description: |
+        Find administrative divisions near a given coordinate. Returns divisions sorted by distance.
+        Useful for answering "What city/county/neighborhood is this location in?"
+      operationId: divisionsContains
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitude of the point
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          example: 40.7128
+        - name: lng
+          in: query
+          required: true
+          description: Longitude of the point
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          example: -74.0060
+        - name: subtype
+          in: query
+          required: false
+          description: Filter by division type
+          schema:
+            type: string
+          example: "locality"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results (1-50)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Successful lookup response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DivisionsContainsResponse'
+        '400':
+          description: Bad request - invalid coordinates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_coordinates:
+                  summary: Missing coordinates
+                  value:
+                    error:
+                      code: missing_coordinates
+                      message: "Both 'lat' and 'lng' parameters are required"
+                      status: 400
+                invalid_latitude:
+                  summary: Invalid latitude
+                  value:
+                    error:
+                      code: invalid_latitude
+                      message: "Latitude must be a number between -90 and 90"
+                      status: 400
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /divisions/subtypes:
+    get:
+      tags:
+        - Divisions
+      summary: List available division subtypes
+      description: |
+        Returns all available division subtypes (e.g., country, region, county, locality, neighborhood).
+        Use these values to filter searches by subtype.
+      operationId: listSubtypes
+      responses:
+        '200':
+          description: List of subtypes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DivisionsSubtypesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     ApiKeyQuery:
@@ -833,6 +1007,86 @@ components:
           type: integer
           description: Total number of categories
           example: 150
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    DivisionResult:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Division name
+          example: "Los Angeles"
+        location:
+          $ref: '#/components/schemas/Location'
+        subtype:
+          type: string
+          description: Division type (locality, county, neighborhood, etc.)
+          example: "locality"
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+          example: "US"
+        region:
+          type: string
+          nullable: true
+          description: Region code (e.g., US-CA for California)
+          example: "US-CA"
+        population:
+          type: integer
+          nullable: true
+          description: Population (if available)
+          example: 4030904
+        wikidata:
+          type: string
+          nullable: true
+          description: Wikidata ID for this division
+          example: "Q65"
+        parent_division_id:
+          type: string
+          nullable: true
+          description: Overture ID of the parent division
+          example: "9b3d1c83-d266-4c67-b21f-6ff37f4d6ccb"
+
+    DivisionsSearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The search query
+          example: "los angeles"
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DivisionResult'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    DivisionsContainsResponse:
+      type: object
+      properties:
+        query:
+          $ref: '#/components/schemas/Location'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DivisionResult'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    DivisionsSubtypesResponse:
+      type: object
+      properties:
+        subtypes:
+          type: array
+          description: List of all available division subtypes
+          items:
+            type: string
+          example: ["country", "region", "county", "locality", "neighborhood", "macrohood", "microhood"]
+        count:
+          type: integer
+          description: Total number of subtypes
+          example: 7
         meta:
           $ref: '#/components/schemas/Meta'
 
