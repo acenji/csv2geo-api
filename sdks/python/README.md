@@ -4,7 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/csv2geo.svg)](https://pypi.org/project/csv2geo/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Official Python SDK for the [CSV2GEO Geocoding API](https://csv2geo.com) - fast, accurate geocoding powered by 446M+ addresses worldwide.
+Official Python SDK for the [CSV2GEO Geocoding API](https://csv2geo.com) - fast, accurate geocoding powered by 461M+ addresses worldwide.
 
 ## Installation
 

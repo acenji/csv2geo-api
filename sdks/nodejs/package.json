@@ -1,7 +1,7 @@
 {
   "name": "csv2geo-sdk",
-  "version": "1.0.0",
-  "description": "Node.js SDK for CSV2GEO Geocoding API",
+  "version": "1.0.1",
+  "description": "Node.js SDK for CSV2GEO Geocoding API — 461M+ addresses, 200+ countries, 18 endpoints. Forward, reverse, batch, places, divisions, autocomplete. 1,000 free requests/day.",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "files": [
@@ -19,9 +19,16 @@
     "longitude",
     "maps",
     "csv2geo",
-    "geolocation"
+    "geolocation",
+    "batch-geocoding",
+    "reverse-geocoding",
+    "places",
+    "gis",
+    "coordinates",
+    "address-to-coordinates",
+    "lat-long"
   ],
-  "author": "Scale Campaign <admin@csv2geo.com>",
+  "author": "Scale Campaign <info@scalecampaign.com>",
   "license": "MIT",
   "repository": {
     "type": "git",

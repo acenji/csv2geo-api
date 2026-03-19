@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csv2geo"
-version = "1.0.0"
-description = "Python SDK for CSV2GEO Geocoding API"
+version = "1.0.1"
+description = "Python SDK for CSV2GEO Geocoding API — 461M+ addresses, 200+ countries, 18 endpoints. Forward, reverse, batch, places, divisions, autocomplete. 1,000 free requests/day."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Scale Campaign", email = "admin@csv2geo.com"}
+    {name = "Scale Campaign", email = "info@scalecampaign.com"}
 ]
-keywords = ["geocoding", "geocode", "address", "latitude", "longitude", "maps", "csv2geo"]
+keywords = ["geocoding", "geocode", "address", "latitude", "longitude", "maps", "csv2geo", "batch-geocoding", "reverse-geocoding", "places", "geolocation", "gis"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
