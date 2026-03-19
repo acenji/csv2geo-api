@@ -52,7 +52,7 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://api.csv2geo.com/v1
+  - url: https://csv2geo.com/api/v1
     description: Production server
 
 security:

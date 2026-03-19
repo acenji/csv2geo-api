@@ -220,7 +220,17 @@ Plus 29 more countries including Spain, Poland, Belgium, Austria, Switzerland, D
 
 See [csv2geo.com/batchgeocoding](https://csv2geo.com/batchgeocoding) for full pricing details.
 
-## Interactive Documentation
+## Import & Test Instantly
+
+Download a pre-configured collection for your favorite API tool — all 39 endpoints ready to test:
+
+| Tool | Download | Description |
+|------|----------|-------------|
+| **Postman** | [csv2geo-postman-collection.json](https://csv2geo.com/api-collections/csv2geo-postman-collection.json) | 39 requests across 8 folders, Postman v2.1 |
+| **Insomnia** | [csv2geo-insomnia-collection.json](https://csv2geo.com/api-collections/csv2geo-insomnia-collection.json) | Export v4 with pre-configured environment |
+| **OpenAPI Spec** | [openapi.yaml](https://csv2geo.com/api-collections/openapi.yaml) | Import into Swagger, Hoppscotch, Bruno, or any tool |
+
+### Interactive Documentation
 
 View the full interactive API documentation powered by [Scalar](https://github.com/scalar/scalar):
 
@@ -230,8 +240,6 @@ cd csv2geo-api
 npm run dev
 # Open http://localhost:3000/docs/
 ```
-
-Or import the [OpenAPI spec](openapi.yaml) into [Postman](https://www.postman.com/), [Insomnia](https://insomnia.rest/), or [Swagger Editor](https://editor.swagger.io).
 
 ## Web Interface (No Code Required)
 
