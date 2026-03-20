@@ -269,6 +269,12 @@ Supports forward geocoding (address → coordinates) and reverse geocoding (coor
 | No credit card needed | ✅ | ❌ | ❌ | ✅ |
 | Open data source | ✅ (Overture) | ❌ | ❌ | ✅ (OSM) |
 
+## Try in ChatGPT
+
+No code needed — geocode addresses directly in ChatGPT:
+
+**[CSV2GEO Geocoder on ChatGPT](https://chatgpt.com/g/g-69bc56b3f7d481919befe76396ae8a0c-csv2geo-geocoder)** — Type an address or drop a CSV/Excel file, get coordinates instantly.
+
 ## More Code Examples
 
 See the [examples/](examples/) directory for working samples in:
