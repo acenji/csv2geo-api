@@ -275,11 +275,31 @@ paths:
           in: query
           required: false
           description: |
-            Comma-separated list of optional enrichments. Pass `meta` to inline a
-            `division` block (locality name, population, wikidata, parent) on each result.
+            Comma-separated list of optional enrichments. Combine with a comma:
+              * `meta` — inline `division` block (locality name, population, wikidata, parent)
+              * `places` — inline `nearby_places` array with the nearest POIs (id, name, category, distance_m)
+            Example: `include=meta,places`
           schema:
             type: string
-          example: "meta"
+          example: "meta,places"
+        - name: places_radius
+          in: query
+          required: false
+          description: Search radius in meters for `?include=places`. Default 200, max 1000.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 200
+        - name: places_limit
+          in: query
+          required: false
+          description: Max nearby places to return for `?include=places`. Default 5, max 20.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
       responses:
         '200':
           description: Successful reverse geocoding response
@@ -2008,6 +2028,27 @@ components:
             Inline locality metadata. Only present when the request passes
             `?include=meta`. Contains the containing division's name,
             population, wikidata, and one-level parent.
+        nearby_places:
+          type: array
+          description: |
+            Nearby POIs within `places_radius` meters of the result location.
+            Only present when the request passes `?include=places`.
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: Overture place ID
+              name:
+                type: string
+                example: "Starbucks"
+              category:
+                type: string
+                example: "coffee_shop"
+              distance_m:
+                type: integer
+                description: Distance from the result location, in meters
+                example: 45
 
     DivisionMeta:
       type: object
