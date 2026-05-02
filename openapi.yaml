@@ -115,6 +115,18 @@ paths:
             type: string
             enum: [full, simple]
             default: full
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma-separated list of optional enrichments to inline into each result.
+            Currently supported:
+              * `meta` — adds a `division` block containing the containing locality's
+                name, name_local, name_latin, subtype, population, wikidata, and
+                one-level parent (region/county). No second API call needed.
+          schema:
+            type: string
+          example: "meta"
       responses:
         '200':
           description: Successful geocoding response
@@ -259,6 +271,15 @@ paths:
             type: string
             enum: [full, simple]
             default: full
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma-separated list of optional enrichments. Pass `meta` to inline a
+            `division` block (locality name, population, wikidata, parent) on each result.
+          schema:
+            type: string
+          example: "meta"
       responses:
         '200':
           description: Successful reverse geocoding response
@@ -1981,6 +2002,54 @@ components:
           type: string
           description: Data source attribution
           example: "Overture Maps Foundation"
+        division:
+          $ref: '#/components/schemas/DivisionMeta'
+          description: |
+            Inline locality metadata. Only present when the request passes
+            `?include=meta`. Contains the containing division's name,
+            population, wikidata, and one-level parent.
+
+    DivisionMeta:
+      type: object
+      description: |
+        Optional inline locality metadata, returned alongside a geocoding result
+        when `?include=meta` is set on the request.
+      properties:
+        name:
+          type: string
+          example: "Washington"
+        name_local:
+          type: string
+          description: Localized name in the division's primary script
+          example: "Δήμος Πεντέλης"
+        name_latin:
+          type: string
+          description: Latin transliteration when the primary name uses non-Latin script
+          example: "Dimos Pentelis"
+        subtype:
+          type: string
+          description: Administrative level
+          enum: [country, region, county, locality, neighborhood, macrohood, microhood, dependency, localadmin]
+          example: "locality"
+        population:
+          type: integer
+          format: int64
+          description: Population, when known
+          example: 34934
+        wikidata:
+          type: string
+          description: Wikidata QID for the division
+          example: "Q4111041"
+        parent:
+          type: object
+          description: One-level parent (region, county, etc.)
+          properties:
+            name:
+              type: string
+              example: "Attica Region"
+            subtype:
+              type: string
+              example: "region"
 
     Location:
       type: object
