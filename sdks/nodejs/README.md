@@ -203,6 +203,11 @@ Sign up at [csv2geo.com](https://csv2geo.com) to get your API key.
 - [API Documentation](https://acenji.github.io/csv2geo-api/docs/)
 - [OpenAPI Specification](https://github.com/acenji/csv2geo-api/blob/main/openapi.yaml)
 
+## Community & Support
+
+- **Questions & feature requests:** [GitHub Discussions](https://github.com/acenji/csv2geo-api/discussions)
+- **Bug reports:** [GitHub Issues](https://github.com/acenji/csv2geo-api/issues)
+
 ## License
 
 MIT License - see [LICENSE](https://github.com/acenji/csv2geo-api/blob/main/LICENSE) for details.
