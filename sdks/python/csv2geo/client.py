@@ -317,6 +317,266 @@ class Client:
         response = BatchGeocodeResponse.from_dict(data)
         return response.results
 
+    # ─────────────────────────────────────────────────────────
+    # Address Tools
+    # ─────────────────────────────────────────────────────────
+
+    def validate(self, address: str, country: str = None) -> dict:
+        """Validate an address. GET /validate"""
+        params = {"q": address}
+        if country: params["country"] = country
+        return self._request("GET", "/validate", params=params)
+
+    def validate_batch(self, addresses: List[str]) -> dict:
+        """Validate up to 10,000 addresses. POST /validate"""
+        if len(addresses) > 10000:
+            raise InvalidRequestError("Max 10,000 per batch")
+        return self._request("POST", "/validate", json={"addresses": addresses})
+
+    def autocomplete(self, query: str, country: str = None, limit: int = None) -> dict:
+        """Address autocomplete suggestions. GET /autocomplete"""
+        params = {"q": query}
+        if country: params["country"] = country
+        if limit:   params["limit"] = limit
+        return self._request("GET", "/autocomplete", params=params)
+
+    def parse(self, address: str) -> dict:
+        """Parse a free-form address into components. GET /parse"""
+        return self._request("GET", "/parse", params={"q": address})
+
+    def parse_batch(self, addresses: List[str]) -> dict:
+        """Parse up to 10,000 addresses. POST /parse"""
+        if len(addresses) > 10000:
+            raise InvalidRequestError("Max 10,000 per batch")
+        return self._request("POST", "/parse", json={"addresses": addresses})
+
+    def standardize(self, address: str) -> dict:
+        """Return a canonical / standardized form of the address. GET /standardize"""
+        return self._request("GET", "/standardize", params={"q": address})
+
+    def compare_addresses(self, address1: str, address2: str) -> dict:
+        """Score similarity between two addresses. GET /addresses/compare"""
+        return self._request("GET", "/addresses/compare", params={"a": address1, "b": address2})
+
+    # ─────────────────────────────────────────────────────────
+    # Address inspection
+    # ─────────────────────────────────────────────────────────
+
+    def addresses_nearby(self, lat: float, lng: float, radius_m: int = 200, limit: int = None) -> dict:
+        """Find addresses within radius of a coordinate. GET /addresses/nearby"""
+        params = {"lat": lat, "lng": lng, "radius": radius_m}
+        if limit: params["limit"] = limit
+        return self._request("GET", "/addresses/nearby", params=params)
+
+    def addresses_street(self, country: str, city: str, street: str) -> dict:
+        """Get all addresses on a street. GET /addresses/street"""
+        return self._request("GET", "/addresses/street",
+                             params={"country": country, "city": city, "street": street})
+
+    def addresses_stats(self, country: str = None) -> dict:
+        """Address counts (per country if specified). GET /addresses/stats"""
+        params = {}
+        if country: params["country"] = country
+        return self._request("GET", "/addresses/stats", params=params)
+
+    def addresses_random(self, country: str = None, limit: int = 1) -> dict:
+        """Random sample of addresses. GET /addresses/random"""
+        params = {"limit": limit}
+        if country: params["country"] = country
+        return self._request("GET", "/addresses/random", params=params)
+
+    def addresses_interpolate(self, country: str, city: str, street: str, house_number: str) -> dict:
+        """Interpolate a coordinate from address-range data. GET /addresses/interpolate"""
+        return self._request("GET", "/addresses/interpolate", params={
+            "country": country, "city": city, "street": street, "house_number": house_number,
+        })
+
+    def addresses_crossstreet(self, country: str, city: str, street_a: str, street_b: str) -> dict:
+        """Find the intersection of two streets. GET /addresses/crossstreet"""
+        return self._request("GET", "/addresses/crossstreet", params={
+            "country": country, "city": city, "street_a": street_a, "street_b": street_b,
+        })
+
+    # ─────────────────────────────────────────────────────────
+    # Places
+    # ─────────────────────────────────────────────────────────
+
+    def places(self, query: str = None, country: str = None, category: str = None,
+               limit: int = None) -> dict:
+        """Search places (POIs) by name / category. GET /places"""
+        params = {}
+        if query:    params["q"] = query
+        if country:  params["country"] = country
+        if category: params["category"] = category
+        if limit:    params["limit"] = limit
+        return self._request("GET", "/places", params=params)
+
+    def places_nearby(self, lat: float, lng: float, radius_m: int = 200,
+                      category: str = None, limit: int = None) -> dict:
+        """Places within radius of a coordinate. GET /places/nearby"""
+        params = {"lat": lat, "lng": lng, "radius": radius_m}
+        if category: params["category"] = category
+        if limit:    params["limit"] = limit
+        return self._request("GET", "/places/nearby", params=params)
+
+    def places_categories(self) -> dict:
+        """List all place categories. GET /places/categories"""
+        return self._request("GET", "/places/categories")
+
+    def places_random(self, country: str = None, category: str = None, limit: int = 1) -> dict:
+        """Random places. GET /places/random"""
+        params = {"limit": limit}
+        if country:  params["country"] = country
+        if category: params["category"] = category
+        return self._request("GET", "/places/random", params=params)
+
+    def places_stats(self, country: str = None) -> dict:
+        """Places counts. GET /places/stats"""
+        params = {}
+        if country: params["country"] = country
+        return self._request("GET", "/places/stats", params=params)
+
+    def places_brands(self, country: str = None) -> dict:
+        """List brand-tagged places. GET /places/brands"""
+        params = {}
+        if country: params["country"] = country
+        return self._request("GET", "/places/brands", params=params)
+
+    def places_chain(self, brand: str, country: str = None) -> dict:
+        """All locations of a brand/chain. GET /places/chain"""
+        params = {"brand": brand}
+        if country: params["country"] = country
+        return self._request("GET", "/places/chain", params=params)
+
+    def places_count(self, country: str = None, category: str = None) -> dict:
+        """Count places matching filter. GET /places/count"""
+        params = {}
+        if country:  params["country"] = country
+        if category: params["category"] = category
+        return self._request("GET", "/places/count", params=params)
+
+    def places_similar(self, place_id: str, limit: int = None) -> dict:
+        """Places similar to a given one. GET /places/similar"""
+        params = {"id": place_id}
+        if limit: params["limit"] = limit
+        return self._request("GET", "/places/similar", params=params)
+
+    def places_batch(self, coordinates: List[Union[Tuple[float, float], dict]],
+                     radius_m: int = 200, category: str = None) -> dict:
+        """Batch nearby-places lookup. POST /places/batch"""
+        if len(coordinates) > 10000:
+            raise InvalidRequestError("Max 10,000 per batch")
+        coords = [
+            {"lat": c[0], "lng": c[1]} if isinstance(c, tuple) else c
+            for c in coordinates
+        ]
+        body = {"coordinates": coords, "radius": radius_m}
+        if category: body["category"] = category
+        return self._request("POST", "/places/batch", json=body)
+
+    def place_by_id(self, place_id: str) -> dict:
+        """Single place by id. GET /places/{id}"""
+        return self._request("GET", f"/places/{place_id}")
+
+    # ─────────────────────────────────────────────────────────
+    # Divisions (Sprint 1 — postcode boundary)
+    # ─────────────────────────────────────────────────────────
+
+    def divisions_search(self, query: str = None, country: str = None,
+                         subtype: str = None, limit: int = None) -> dict:
+        """Search administrative divisions. GET /divisions"""
+        params = {}
+        if query:   params["q"] = query
+        if country: params["country"] = country
+        if subtype: params["subtype"] = subtype
+        if limit:   params["limit"] = limit
+        return self._request("GET", "/divisions", params=params)
+
+    def divisions_contains(self, lat: float, lng: float) -> dict:
+        """Point-in-polygon: divisions containing a point. GET /divisions/contains"""
+        return self._request("GET", "/divisions/contains", params={"lat": lat, "lng": lng})
+
+    def divisions_by_postcode(self, code: str, country: str,
+                              include: str = None, precision: str = None) -> dict:
+        """
+        Postcode → boundary (bbox + optional polygon + population + wikidata).
+        GET /divisions/by-postcode
+
+        Args:
+            code: Postcode in any common format (e.g. "90210", "SW1A 1AA")
+            country: ISO 3166-1 alpha-2 code
+            include: "geometry" to include the polygon
+            precision: "simplified" (default, fewer points) or "full"
+
+        Example:
+            r = client.divisions_by_postcode("90210", "US", include="geometry")
+            print(r["result"]["population"], r["result"]["bbox"])
+        """
+        params = {"code": code, "country": country}
+        if include:   params["include"] = include
+        if precision: params["precision"] = precision
+        return self._request("GET", "/divisions/by-postcode", params=params)
+
+    def divisions_subtypes(self) -> dict:
+        """List available division subtypes. GET /divisions/subtypes"""
+        return self._request("GET", "/divisions/subtypes")
+
+    def divisions_countries(self) -> dict:
+        """List countries with division coverage. GET /divisions/countries"""
+        return self._request("GET", "/divisions/countries")
+
+    def divisions_stats(self, country: str = None) -> dict:
+        """Division counts. GET /divisions/stats"""
+        params = {}
+        if country: params["country"] = country
+        return self._request("GET", "/divisions/stats", params=params)
+
+    def divisions_random(self, country: str = None, subtype: str = None, limit: int = 1) -> dict:
+        """Random divisions. GET /divisions/random"""
+        params = {"limit": limit}
+        if country: params["country"] = country
+        if subtype: params["subtype"] = subtype
+        return self._request("GET", "/divisions/random", params=params)
+
+    def division_hierarchy(self, division_id: str) -> dict:
+        """Full parent/child chain for a division. GET /divisions/hierarchy/{id}"""
+        return self._request("GET", f"/divisions/hierarchy/{division_id}")
+
+    def division_by_id(self, division_id: str) -> dict:
+        """Single division by id. GET /divisions/{id}"""
+        return self._request("GET", f"/divisions/{division_id}")
+
+    # ─────────────────────────────────────────────────────────
+    # Coverage
+    # ─────────────────────────────────────────────────────────
+
+    def coverage(self) -> dict:
+        """Live tier-by-country coverage matrix. GET /coverage"""
+        return self._request("GET", "/coverage")
+
+    def coverage_stats(self) -> dict:
+        """Aggregate coverage totals. GET /coverage-stats"""
+        return self._request("GET", "/coverage-stats")
+
+    # ─────────────────────────────────────────────────────────
+    # Utilities
+    # ─────────────────────────────────────────────────────────
+
+    def timezone(self, lat: float, lng: float) -> dict:
+        """Timezone at a coordinate. GET /timezone"""
+        return self._request("GET", "/timezone", params={"lat": lat, "lng": lng})
+
+    def distance(self, lat1: float, lng1: float, lat2: float, lng2: float) -> dict:
+        """Great-circle distance between two coordinates. GET /distance"""
+        return self._request("GET", "/distance",
+                             params={"lat1": lat1, "lng1": lng1, "lat2": lat2, "lng2": lng2})
+
+    def health(self) -> dict:
+        """Service health check. GET /health"""
+        return self._request("GET", "/health")
+
+    # ─────────────────────────────────────────────────────────
+
     def close(self):
         """Close the client session."""
         self._session.close()
