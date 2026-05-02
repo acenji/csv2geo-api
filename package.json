@@ -18,5 +18,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/acenji/csv2geo-api.git"
+  },
+  "dependencies": {
+    "openapi-to-postmanv2": "^6.0.0"
   }
 }

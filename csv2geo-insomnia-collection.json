@@ -1,0 +1,1444 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-03-19T17:15:42.774Z",
+  "__export_source": "csv2geo-api",
+  "resources": [
+    {
+      "_id": "wrk_csv2geo",
+      "_type": "workspace",
+      "name": "CSV2GEO Geocoding API",
+      "description": "The most feature-rich geocoding API. 461M+ addresses, 200+ countries, 18 endpoints. Get your key at csv2geo.com/api-keys",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_csv2geo",
+      "_type": "environment",
+      "parentId": "wrk_csv2geo",
+      "name": "Production",
+      "data": {
+        "base_url": "https://csv2geo.com/api/v1",
+        "api_key": "YOUR_API_KEY"
+      }
+    },
+    {
+      "_id": "fld_geocoding",
+      "_type": "request_group",
+      "parentId": "wrk_csv2geo",
+      "name": "Geocoding",
+      "description": "Forward geocoding - convert addresses to coordinates"
+    },
+    {
+      "_id": "fld_reverse_geocoding",
+      "_type": "request_group",
+      "parentId": "wrk_csv2geo",
+      "name": "Reverse Geocoding",
+      "description": "Reverse geocoding - convert coordinates to addresses"
+    },
+    {
+      "_id": "fld_address_tools",
+      "_type": "request_group",
+      "parentId": "wrk_csv2geo",
+      "name": "Address Tools",
+      "description": "Validate, parse, standardize, and autocomplete addresses"
+    },
+    {
+      "_id": "fld_batch",
+      "_type": "request_group",
+      "parentId": "wrk_csv2geo",
+      "name": "Batch",
+      "description": "Batch processing for multiple addresses or coordinates"
+    },
+    {
+      "_id": "fld_places",
+      "_type": "request_group",
+      "parentId": "wrk_csv2geo",
+      "name": "Places",
+      "description": "Search 72M+ POIs - businesses, landmarks, restaurants, and more"
+    },
+    {
+      "_id": "fld_divisions",
+      "_type": "request_group",
+      "parentId": "wrk_csv2geo",
+      "name": "Divisions",
+      "description": "4.6M+ administrative boundaries - cities, counties, neighborhoods, states"
+    },
+    {
+      "_id": "fld_utilities",
+      "_type": "request_group",
+      "parentId": "wrk_csv2geo",
+      "name": "Utilities",
+      "description": "Timezone lookup, distance calculations, and system health"
+    },
+    {
+      "_id": "req_1",
+      "_type": "request",
+      "parentId": "fld_geocoding",
+      "name": "Geocode a single address",
+      "description": "Convert a single address to latitude/longitude coordinates",
+      "method": "GET",
+      "url": "{{ _.base_url }}/geocode",
+      "parameters": [
+        {
+          "name": "q",
+          "value": "1600 Pennsylvania Ave, Washington DC",
+          "description": "The address to geocode",
+          "disabled": false
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Limit results to a specific country (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum number of results to return (1-5)",
+          "disabled": true
+        },
+        {
+          "name": "format",
+          "value": "",
+          "description": "Response format",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_2",
+      "_type": "request",
+      "parentId": "fld_batch",
+      "name": "Batch geocode multiple addresses",
+      "description": "Convert up to 10,000 addresses to coordinates in a single request",
+      "method": "POST",
+      "url": "{{ _.base_url }}/geocode",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      }
+    },
+    {
+      "_id": "req_3",
+      "_type": "request",
+      "parentId": "fld_reverse_geocoding",
+      "name": "Reverse geocode a single coordinate",
+      "description": "Convert latitude/longitude coordinates to a human-readable address",
+      "method": "GET",
+      "url": "{{ _.base_url }}/reverse",
+      "parameters": [
+        {
+          "name": "lat",
+          "value": 38.8977,
+          "description": "Latitude",
+          "disabled": false
+        },
+        {
+          "name": "lng",
+          "value": -77.0365,
+          "description": "Longitude",
+          "disabled": false
+        },
+        {
+          "name": "format",
+          "value": "",
+          "description": "Response format",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_4",
+      "_type": "request",
+      "parentId": "fld_batch",
+      "name": "Batch reverse geocode multiple coordinates",
+      "description": "Convert up to 10,000 coordinates to addresses in a single request",
+      "method": "POST",
+      "url": "{{ _.base_url }}/reverse",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      }
+    },
+    {
+      "_id": "req_5",
+      "_type": "request",
+      "parentId": "fld_address_tools",
+      "name": "Validate a single address",
+      "description": "Check if an address is valid and deliverable, with detailed validation results",
+      "method": "GET",
+      "url": "{{ _.base_url }}/validate",
+      "parameters": [
+        {
+          "name": "q",
+          "value": "1600 Pennsylvania Ave, Washington DC",
+          "description": "The address to validate",
+          "disabled": false
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_6",
+      "_type": "request",
+      "parentId": "fld_batch",
+      "name": "Batch validate multiple addresses",
+      "description": "Validate up to 10,000 addresses in a single request",
+      "method": "POST",
+      "url": "{{ _.base_url }}/validate",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      }
+    },
+    {
+      "_id": "req_7",
+      "_type": "request",
+      "parentId": "fld_address_tools",
+      "name": "Autocomplete address input",
+      "description": "Get address suggestions as user types, optimized for type-ahead search",
+      "method": "GET",
+      "url": "{{ _.base_url }}/autocomplete",
+      "parameters": [
+        {
+          "name": "q",
+          "value": "1600 Penn",
+          "description": "Partial address input",
+          "disabled": false
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum suggestions to return (1-10)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_8",
+      "_type": "request",
+      "parentId": "fld_address_tools",
+      "name": "Parse address into components",
+      "description": "Break down a freeform address into structured components (street, city, state, etc.)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/parse",
+      "parameters": [
+        {
+          "name": "q",
+          "value": "1600 Pennsylvania Avenue NW, Washington, DC 20500",
+          "description": "The address to parse",
+          "disabled": false
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_9",
+      "_type": "request",
+      "parentId": "fld_batch",
+      "name": "Batch parse multiple addresses",
+      "description": "Parse up to 10,000 addresses into components in a single request",
+      "method": "POST",
+      "url": "{{ _.base_url }}/parse",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      }
+    },
+    {
+      "_id": "req_10",
+      "_type": "request",
+      "parentId": "fld_address_tools",
+      "name": "Standardize address format",
+      "description": "Convert address to standardized USPS/postal format",
+      "method": "GET",
+      "url": "{{ _.base_url }}/standardize",
+      "parameters": [
+        {
+          "name": "q",
+          "value": "1600 penn ave washington dc",
+          "description": "The address to standardize",
+          "disabled": false
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_11",
+      "_type": "request",
+      "parentId": "fld_geocoding",
+      "name": "Find addresses near a location",
+      "description": "Search for addresses within a radius of a given coordinate",
+      "method": "GET",
+      "url": "{{ _.base_url }}/addresses/nearby",
+      "parameters": [
+        {
+          "name": "lat",
+          "value": 38.8977,
+          "description": "Latitude of center point",
+          "disabled": false
+        },
+        {
+          "name": "lng",
+          "value": -77.0365,
+          "description": "Longitude of center point",
+          "disabled": false
+        },
+        {
+          "name": "radius",
+          "value": "",
+          "description": "Search radius in meters (1-5000)",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum results (1-50)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_12",
+      "_type": "request",
+      "parentId": "fld_geocoding",
+      "name": "Get all addresses on a street",
+      "description": "Retrieve all known addresses on a specific street",
+      "method": "GET",
+      "url": "{{ _.base_url }}/addresses/street",
+      "parameters": [
+        {
+          "name": "street",
+          "value": "Pennsylvania Avenue NW",
+          "description": "Street name",
+          "disabled": false
+        },
+        {
+          "name": "city",
+          "value": "Washington",
+          "description": "City name",
+          "disabled": true
+        },
+        {
+          "name": "state",
+          "value": "DC",
+          "description": "State/region",
+          "disabled": true
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum results (1-100)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_13",
+      "_type": "request",
+      "parentId": "fld_geocoding",
+      "name": "Get address database statistics",
+      "description": "Retrieve statistics about address coverage by country",
+      "method": "GET",
+      "url": "{{ _.base_url }}/addresses/stats",
+      "parameters": [
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2) for country-specific stats",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_14",
+      "_type": "request",
+      "parentId": "fld_geocoding",
+      "name": "Get random addresses",
+      "description": "Retrieve random sample addresses, useful for testing and demos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/addresses/random",
+      "parameters": [
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Number of random addresses (1-100)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_15",
+      "_type": "request",
+      "parentId": "fld_address_tools",
+      "name": "Compare two addresses",
+      "description": "Check if two addresses refer to the same location",
+      "method": "GET",
+      "url": "{{ _.base_url }}/addresses/compare",
+      "parameters": [
+        {
+          "name": "address1",
+          "value": "1600 Pennsylvania Ave NW, Washington DC",
+          "description": "First address",
+          "disabled": false
+        },
+        {
+          "name": "address2",
+          "value": "1600 Penn Ave, Washington, DC 20500",
+          "description": "Second address",
+          "disabled": false
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_16",
+      "_type": "request",
+      "parentId": "fld_geocoding",
+      "name": "Interpolate address location",
+      "description": "Estimate coordinates for an address using range interpolation when exact match unavailable",
+      "method": "GET",
+      "url": "{{ _.base_url }}/addresses/interpolate",
+      "parameters": [
+        {
+          "name": "q",
+          "value": "1601 Pennsylvania Ave, Washington DC",
+          "description": "The address to interpolate",
+          "disabled": false
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_17",
+      "_type": "request",
+      "parentId": "fld_geocoding",
+      "name": "Find cross street intersection",
+      "description": "Get the coordinates of an intersection between two streets",
+      "method": "GET",
+      "url": "{{ _.base_url }}/addresses/crossstreet",
+      "parameters": [
+        {
+          "name": "street1",
+          "value": "Pennsylvania Avenue NW",
+          "description": "First street name",
+          "disabled": false
+        },
+        {
+          "name": "street2",
+          "value": "17th Street NW",
+          "description": "Second street name",
+          "disabled": false
+        },
+        {
+          "name": "city",
+          "value": "Washington",
+          "description": "City name",
+          "disabled": true
+        },
+        {
+          "name": "state",
+          "value": "DC",
+          "description": "State/region",
+          "disabled": true
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_18",
+      "_type": "request",
+      "parentId": "wrk_csv2geo",
+      "name": "Health check",
+      "description": "Check API status and version",
+      "method": "GET",
+      "url": "{{ _.base_url }}/health",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_19",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "Search places by name",
+      "description": "Search for points of interest (POIs) by name. Returns businesses, landmarks, and other places matching your query.\n\nUses text search to match place names and brand names.\n",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places",
+      "parameters": [
+        {
+          "name": "q",
+          "value": "starbucks",
+          "description": "Search query (place name, brand, etc.)",
+          "disabled": false
+        },
+        {
+          "name": "category",
+          "value": "coffee_shop",
+          "description": "Filter by category (e.g., \"coffee_shop\", \"restaurant\")",
+          "disabled": true
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Filter by country (ISO 3166-1 alpha-2). Defaults to \"US\"",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum number of results (1-50)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_20",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "Find places near a location",
+      "description": "Search for places within a radius of a given location. Results are sorted by distance from the center point.\n\nUses geospatial indexing for efficient nearby searches.\n",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/nearby",
+      "parameters": [
+        {
+          "name": "lat",
+          "value": 40.7128,
+          "description": "Latitude of center point",
+          "disabled": false
+        },
+        {
+          "name": "lng",
+          "value": -74.006,
+          "description": "Longitude of center point",
+          "disabled": false
+        },
+        {
+          "name": "radius",
+          "value": "",
+          "description": "Search radius in meters (1-50000). Default is 1000m (1km)",
+          "disabled": true
+        },
+        {
+          "name": "category",
+          "value": "restaurant",
+          "description": "Filter by category",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum number of results (1-50)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_21",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "List available place categories",
+      "description": "Returns all available place categories in the database. Use these values to filter searches by category.\n",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/categories",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_22",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "Get random places",
+      "description": "Retrieve random sample places, useful for testing and demos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/random",
+      "parameters": [
+        {
+          "name": "category",
+          "value": "restaurant",
+          "description": "Filter by category",
+          "disabled": true
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Number of random places (1-100)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_23",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "Get places database statistics",
+      "description": "Retrieve statistics about place coverage by country and category",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/stats",
+      "parameters": [
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2) for country-specific stats",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_24",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "List available brands",
+      "description": "Get a list of all brand names in the database with place counts",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/brands",
+      "parameters": [
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum brands to return (1-500)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_25",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "Get all locations of a chain/brand",
+      "description": "Find all locations of a specific brand or chain (e.g., all Starbucks)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/chain",
+      "parameters": [
+        {
+          "name": "brand",
+          "value": "Starbucks",
+          "description": "Brand name",
+          "disabled": false
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "state",
+          "value": "CA",
+          "description": "State/region filter",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum results (1-1000)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_26",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "Count places matching criteria",
+      "description": "Get count of places matching search criteria without returning full results",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/count",
+      "parameters": [
+        {
+          "name": "category",
+          "value": "coffee_shop",
+          "description": "Filter by category",
+          "disabled": true
+        },
+        {
+          "name": "brand",
+          "value": "Starbucks",
+          "description": "Filter by brand",
+          "disabled": true
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "state",
+          "value": "CA",
+          "description": "State/region filter",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_27",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "Find similar places",
+      "description": "Find places similar to a given place by category, location, or attributes",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/similar",
+      "parameters": [
+        {
+          "name": "id",
+          "value": "08f28a8f-8c8b-4896-815e-c92c8df0a8a6",
+          "description": "Place ID to find similar places for",
+          "disabled": false
+        },
+        {
+          "name": "radius",
+          "value": "",
+          "description": "Search radius in meters (1-50000)",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum results (1-50)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_28",
+      "_type": "request",
+      "parentId": "fld_batch",
+      "name": "Batch lookup places by ID",
+      "description": "Retrieve multiple places by their IDs in a single request",
+      "method": "POST",
+      "url": "{{ _.base_url }}/places/batch",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      }
+    },
+    {
+      "_id": "req_29",
+      "_type": "request",
+      "parentId": "fld_places",
+      "name": "Get place by ID",
+      "description": "Retrieve detailed information about a specific place",
+      "method": "GET",
+      "url": "{{ _.base_url }}/places/{id}",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_30",
+      "_type": "request",
+      "parentId": "fld_divisions",
+      "name": "Search divisions by name",
+      "description": "Search for administrative divisions (cities, counties, neighborhoods) by name.\nUses text search to match division names.\n",
+      "method": "GET",
+      "url": "{{ _.base_url }}/divisions",
+      "parameters": [
+        {
+          "name": "q",
+          "value": "los angeles",
+          "description": "Search query (division name)",
+          "disabled": false
+        },
+        {
+          "name": "subtype",
+          "value": "locality",
+          "description": "Filter by division type (locality, county, neighborhood, etc.)",
+          "disabled": true
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Filter by country (ISO 3166-1 alpha-2). Defaults to \"US\"",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum number of results (1-50)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_31",
+      "_type": "request",
+      "parentId": "fld_divisions",
+      "name": "Find divisions near a location",
+      "description": "Find administrative divisions near a given coordinate. Returns divisions sorted by distance.\nUseful for answering \"What city/county/neighborhood is this location in?\"\n",
+      "method": "GET",
+      "url": "{{ _.base_url }}/divisions/contains",
+      "parameters": [
+        {
+          "name": "lat",
+          "value": 40.7128,
+          "description": "Latitude of the point",
+          "disabled": false
+        },
+        {
+          "name": "lng",
+          "value": -74.006,
+          "description": "Longitude of the point",
+          "disabled": false
+        },
+        {
+          "name": "subtype",
+          "value": "locality",
+          "description": "Filter by division type",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Maximum number of results (1-50)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_32",
+      "_type": "request",
+      "parentId": "fld_divisions",
+      "name": "List available division subtypes",
+      "description": "Returns all available division subtypes (e.g., country, region, county, locality, neighborhood).\nUse these values to filter searches by subtype.\n",
+      "method": "GET",
+      "url": "{{ _.base_url }}/divisions/subtypes",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_33",
+      "_type": "request",
+      "parentId": "fld_divisions",
+      "name": "List countries with coverage",
+      "description": "Get list of all countries in the database with division counts",
+      "method": "GET",
+      "url": "{{ _.base_url }}/divisions/countries",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_34",
+      "_type": "request",
+      "parentId": "fld_divisions",
+      "name": "Get divisions database statistics",
+      "description": "Retrieve statistics about division coverage by country and subtype",
+      "method": "GET",
+      "url": "{{ _.base_url }}/divisions/stats",
+      "parameters": [
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2) for country-specific stats",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_35",
+      "_type": "request",
+      "parentId": "fld_divisions",
+      "name": "Get random divisions",
+      "description": "Retrieve random sample divisions, useful for testing and demos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/divisions/random",
+      "parameters": [
+        {
+          "name": "subtype",
+          "value": "locality",
+          "description": "Filter by division type",
+          "disabled": true
+        },
+        {
+          "name": "country",
+          "value": "US",
+          "description": "Country code (ISO 3166-1 alpha-2)",
+          "disabled": true
+        },
+        {
+          "name": "limit",
+          "value": "",
+          "description": "Number of random divisions (1-100)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_36",
+      "_type": "request",
+      "parentId": "fld_divisions",
+      "name": "Get division hierarchy",
+      "description": "Get the full hierarchy chain for a division (parent, grandparent, etc.)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/divisions/hierarchy/{id}",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_37",
+      "_type": "request",
+      "parentId": "fld_divisions",
+      "name": "Get division by ID",
+      "description": "Retrieve detailed information about a specific division",
+      "method": "GET",
+      "url": "{{ _.base_url }}/divisions/{id}",
+      "parameters": [
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_38",
+      "_type": "request",
+      "parentId": "fld_utilities",
+      "name": "Get timezone for coordinates",
+      "description": "Lookup the timezone for a given latitude/longitude",
+      "method": "GET",
+      "url": "{{ _.base_url }}/timezone",
+      "parameters": [
+        {
+          "name": "lat",
+          "value": 40.7128,
+          "description": "Latitude",
+          "disabled": false
+        },
+        {
+          "name": "lng",
+          "value": -74.006,
+          "description": "Longitude",
+          "disabled": false
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "_id": "req_39",
+      "_type": "request",
+      "parentId": "fld_utilities",
+      "name": "Calculate distance between points",
+      "description": "Calculate the distance between two coordinates using the Haversine formula",
+      "method": "GET",
+      "url": "{{ _.base_url }}/distance",
+      "parameters": [
+        {
+          "name": "lat1",
+          "value": 40.7128,
+          "description": "Latitude of first point",
+          "disabled": false
+        },
+        {
+          "name": "lng1",
+          "value": -74.006,
+          "description": "Longitude of first point",
+          "disabled": false
+        },
+        {
+          "name": "lat2",
+          "value": 38.8977,
+          "description": "Latitude of second point",
+          "disabled": false
+        },
+        {
+          "name": "lng2",
+          "value": -77.0365,
+          "description": "Longitude of second point",
+          "disabled": false
+        },
+        {
+          "name": "unit",
+          "value": "",
+          "description": "Unit for distance (km, mi, m)",
+          "disabled": true
+        },
+        {
+          "name": "api_key",
+          "value": "{{ _.api_key }}",
+          "description": "API Key"
+        }
+      ],
+      "headers": [
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ]
+    }
+  ]
+}

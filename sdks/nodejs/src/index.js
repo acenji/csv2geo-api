@@ -260,6 +260,286 @@ class Client {
     }));
   }
 
+  // ─────────────────────────────────────────────────────────
+  // Address Tools
+  // ─────────────────────────────────────────────────────────
+
+  /** Validate an address. GET /validate */
+  async validate(address, options = {}) {
+    const params = { q: address };
+    if (options.country) params.country = options.country;
+    return this._request('GET', '/validate', params);
+  }
+
+  /** Validate up to 10,000 addresses. POST /validate */
+  async validateBatch(addresses) {
+    if (addresses.length > 10000) throw new InvalidRequestError('Max 10,000 per batch');
+    return this._request('POST', '/validate', {}, { addresses });
+  }
+
+  /** Address autocomplete suggestions. GET /autocomplete */
+  async autocomplete(query, options = {}) {
+    const params = { q: query };
+    if (options.country) params.country = options.country;
+    if (options.limit)   params.limit   = options.limit;
+    return this._request('GET', '/autocomplete', params);
+  }
+
+  /** Parse a free-form address into components. GET /parse */
+  async parse(address) {
+    return this._request('GET', '/parse', { q: address });
+  }
+
+  /** Parse up to 10,000 addresses. POST /parse */
+  async parseBatch(addresses) {
+    if (addresses.length > 10000) throw new InvalidRequestError('Max 10,000 per batch');
+    return this._request('POST', '/parse', {}, { addresses });
+  }
+
+  /** Standardize an address. GET /standardize */
+  async standardize(address) {
+    return this._request('GET', '/standardize', { q: address });
+  }
+
+  /** Score similarity between two addresses. GET /addresses/compare */
+  async compareAddresses(address1, address2) {
+    return this._request('GET', '/addresses/compare', { a: address1, b: address2 });
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Address inspection
+  // ─────────────────────────────────────────────────────────
+
+  /** Find addresses within radius of a coordinate. GET /addresses/nearby */
+  async addressesNearby(lat, lng, options = {}) {
+    const params = { lat, lng, radius: options.radius || 200 };
+    if (options.limit) params.limit = options.limit;
+    return this._request('GET', '/addresses/nearby', params);
+  }
+
+  /** Get all addresses on a street. GET /addresses/street */
+  async addressesStreet(country, city, street) {
+    return this._request('GET', '/addresses/street', { country, city, street });
+  }
+
+  /** Address counts. GET /addresses/stats */
+  async addressesStats(country) {
+    const params = {};
+    if (country) params.country = country;
+    return this._request('GET', '/addresses/stats', params);
+  }
+
+  /** Random sample of addresses. GET /addresses/random */
+  async addressesRandom(options = {}) {
+    const params = { limit: options.limit || 1 };
+    if (options.country) params.country = options.country;
+    return this._request('GET', '/addresses/random', params);
+  }
+
+  /** Interpolate a coordinate from address-range data. GET /addresses/interpolate */
+  async addressesInterpolate(country, city, street, houseNumber) {
+    return this._request('GET', '/addresses/interpolate',
+      { country, city, street, house_number: houseNumber });
+  }
+
+  /** Find the intersection of two streets. GET /addresses/crossstreet */
+  async addressesCrossstreet(country, city, streetA, streetB) {
+    return this._request('GET', '/addresses/crossstreet',
+      { country, city, street_a: streetA, street_b: streetB });
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Places
+  // ─────────────────────────────────────────────────────────
+
+  /** Search places (POIs). GET /places */
+  async places(options = {}) {
+    const params = {};
+    if (options.q || options.query) params.q = options.q || options.query;
+    if (options.country)            params.country = options.country;
+    if (options.category)           params.category = options.category;
+    if (options.limit)              params.limit = options.limit;
+    return this._request('GET', '/places', params);
+  }
+
+  /** Places within radius of a coordinate. GET /places/nearby */
+  async placesNearby(lat, lng, options = {}) {
+    const params = { lat, lng, radius: options.radius || 200 };
+    if (options.category) params.category = options.category;
+    if (options.limit)    params.limit = options.limit;
+    return this._request('GET', '/places/nearby', params);
+  }
+
+  /** List all place categories. GET /places/categories */
+  async placesCategories() {
+    return this._request('GET', '/places/categories');
+  }
+
+  /** Random places. GET /places/random */
+  async placesRandom(options = {}) {
+    const params = { limit: options.limit || 1 };
+    if (options.country)  params.country = options.country;
+    if (options.category) params.category = options.category;
+    return this._request('GET', '/places/random', params);
+  }
+
+  /** Places counts. GET /places/stats */
+  async placesStats(country) {
+    const params = {};
+    if (country) params.country = country;
+    return this._request('GET', '/places/stats', params);
+  }
+
+  /** List brand-tagged places. GET /places/brands */
+  async placesBrands(country) {
+    const params = {};
+    if (country) params.country = country;
+    return this._request('GET', '/places/brands', params);
+  }
+
+  /** All locations of a brand/chain. GET /places/chain */
+  async placesChain(brand, country) {
+    const params = { brand };
+    if (country) params.country = country;
+    return this._request('GET', '/places/chain', params);
+  }
+
+  /** Count places matching filter. GET /places/count */
+  async placesCount(options = {}) {
+    const params = {};
+    if (options.country)  params.country = options.country;
+    if (options.category) params.category = options.category;
+    return this._request('GET', '/places/count', params);
+  }
+
+  /** Places similar to a given one. GET /places/similar */
+  async placesSimilar(placeId, options = {}) {
+    const params = { id: placeId };
+    if (options.limit) params.limit = options.limit;
+    return this._request('GET', '/places/similar', params);
+  }
+
+  /** Batch nearby-places lookup. POST /places/batch */
+  async placesBatch(coordinates, options = {}) {
+    if (coordinates.length > 10000) throw new InvalidRequestError('Max 10,000 per batch');
+    const body = { coordinates, radius: options.radius || 200 };
+    if (options.category) body.category = options.category;
+    return this._request('POST', '/places/batch', {}, body);
+  }
+
+  /** Single place by id. GET /places/{id} */
+  async placeById(placeId) {
+    return this._request('GET', `/places/${encodeURIComponent(placeId)}`);
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Divisions (Sprint 1 — postcode boundary)
+  // ─────────────────────────────────────────────────────────
+
+  /** Search administrative divisions. GET /divisions */
+  async divisionsSearch(options = {}) {
+    const params = {};
+    if (options.q || options.query) params.q = options.q || options.query;
+    if (options.country)            params.country = options.country;
+    if (options.subtype)            params.subtype = options.subtype;
+    if (options.limit)              params.limit = options.limit;
+    return this._request('GET', '/divisions', params);
+  }
+
+  /** Point-in-polygon: divisions containing a point. GET /divisions/contains */
+  async divisionsContains(lat, lng) {
+    return this._request('GET', '/divisions/contains', { lat, lng });
+  }
+
+  /**
+   * Postcode → boundary (bbox + optional polygon + population + wikidata).
+   * GET /divisions/by-postcode
+   *
+   * @param {string} code - Postcode (e.g. "90210", "SW1A 1AA")
+   * @param {string} country - ISO 3166-1 alpha-2
+   * @param {Object} [options]
+   * @param {string} [options.include] - "geometry" to include polygon
+   * @param {string} [options.precision] - "simplified" (default) or "full"
+   *
+   * @example
+   *   const r = await client.divisionsByPostcode('90210', 'US', { include: 'geometry' });
+   *   console.log(r.result.population, r.result.bbox);
+   */
+  async divisionsByPostcode(code, country, options = {}) {
+    const params = { code, country };
+    if (options.include)   params.include = options.include;
+    if (options.precision) params.precision = options.precision;
+    return this._request('GET', '/divisions/by-postcode', params);
+  }
+
+  /** List available division subtypes. GET /divisions/subtypes */
+  async divisionsSubtypes() {
+    return this._request('GET', '/divisions/subtypes');
+  }
+
+  /** List countries with division coverage. GET /divisions/countries */
+  async divisionsCountries() {
+    return this._request('GET', '/divisions/countries');
+  }
+
+  /** Division counts. GET /divisions/stats */
+  async divisionsStats(country) {
+    const params = {};
+    if (country) params.country = country;
+    return this._request('GET', '/divisions/stats', params);
+  }
+
+  /** Random divisions. GET /divisions/random */
+  async divisionsRandom(options = {}) {
+    const params = { limit: options.limit || 1 };
+    if (options.country) params.country = options.country;
+    if (options.subtype) params.subtype = options.subtype;
+    return this._request('GET', '/divisions/random', params);
+  }
+
+  /** Full parent/child chain for a division. GET /divisions/hierarchy/{id} */
+  async divisionHierarchy(divisionId) {
+    return this._request('GET', `/divisions/hierarchy/${encodeURIComponent(divisionId)}`);
+  }
+
+  /** Single division by id. GET /divisions/{id} */
+  async divisionById(divisionId) {
+    return this._request('GET', `/divisions/${encodeURIComponent(divisionId)}`);
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Coverage
+  // ─────────────────────────────────────────────────────────
+
+  /** Live tier-by-country coverage matrix. GET /coverage */
+  async coverage() {
+    return this._request('GET', '/coverage');
+  }
+
+  /** Aggregate coverage totals. GET /coverage-stats */
+  async coverageStats() {
+    return this._request('GET', '/coverage-stats');
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Utilities
+  // ─────────────────────────────────────────────────────────
+
+  /** Timezone at a coordinate. GET /timezone */
+  async timezone(lat, lng) {
+    return this._request('GET', '/timezone', { lat, lng });
+  }
+
+  /** Great-circle distance between two coordinates. GET /distance */
+  async distance(lat1, lng1, lat2, lng2) {
+    return this._request('GET', '/distance', { lat1, lng1, lat2, lng2 });
+  }
+
+  /** Service health check. GET /health */
+  async health() {
+    return this._request('GET', '/health');
+  }
+
   /**
    * Parse API result into GeocodeResult
    * @private

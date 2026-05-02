@@ -919,6 +919,41 @@ paths:
                     type: string
                     format: date-time
 
+  /me:
+    get:
+      tags:
+        - Account
+      summary: Account info
+      description: Returns API key details including plan, permissions, and rate limits. Used for integration authentication validation (Zapier, Google Sheets, etc.).
+      operationId: getAccountInfo
+      responses:
+        '200':
+          description: Account information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: "Production Key"
+                  plan:
+                    type: string
+                    example: "growth"
+                  permissions:
+                    type: array
+                    items:
+                      type: string
+                    example: ["forward", "reverse", "batch", "places"]
+                  rate_limit:
+                    type: integer
+                    example: 5000
+                  status:
+                    type: string
+                    example: "active"
+        '401':
+          description: Invalid API key
+
   /places:
     get:
       tags:
