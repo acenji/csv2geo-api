@@ -1970,6 +1970,123 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /ip:
+    get:
+      tags:
+        - IP Geolocation
+      summary: IP → geolocation (city, region, county, ASN)
+      description: |
+        Submillisecond IP-to-location lookup using MaxMind GeoLite2.
+        Residential and business IPs additionally get a county + locality
+        derived from our division_areas polygons (Sprint 2.7). Anycast IPs
+        (Google DNS, Cloudflare DNS, CDN edges) return country only and
+        are flagged with `confidence: low`.
+
+        **Bundled into every plan including Free** — zero marginal cost,
+        local DB lookup, no third-party API call.
+      operationId: ipLookup
+      parameters:
+        - name: ip
+          in: query
+          required: true
+          description: IPv4 or IPv6 address
+          schema:
+            type: string
+          example: "8.8.8.8"
+      responses:
+        '200':
+          description: IP geolocation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IPGeoResponse'
+        '400':
+          description: Missing or invalid `ip` parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ip/me:
+    get:
+      tags:
+        - IP Geolocation
+      summary: Geolocate the requester's own IP
+      description: |
+        Convenience endpoint that uses the IP address of the request itself
+        (honoring `X-Forwarded-For` from trusted proxies). Otherwise identical
+        to `GET /ip?ip=...`.
+      operationId: ipLookupMe
+      responses:
+        '200':
+          description: IP geolocation result for the requester
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IPGeoResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ip/batch:
+    post:
+      tags:
+        - IP Geolocation
+      summary: Batch IP geolocation
+      description: |
+        Resolve up to 1000 IPs in a single request. Per-IP errors (invalid
+        format etc.) are returned inline in `results` rather than failing
+        the whole batch.
+      operationId: ipLookupBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ips]
+              properties:
+                ips:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  maxItems: 1000
+                  example: ["8.8.8.8", "1.1.1.1", "107.192.40.118"]
+      responses:
+        '200':
+          description: Per-IP results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IPGeoResponse'
+        '400':
+          description: Missing or invalid body (e.g. empty `ips`, more than 1000)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     ApiKeyQuery:
@@ -3089,3 +3206,113 @@ components:
           example: 225.3
         meta:
           $ref: '#/components/schemas/Meta'
+
+    # IP Geolocation
+    IPGeoResponse:
+      type: object
+      required: [ip, source]
+      properties:
+        ip:
+          type: string
+          example: "107.192.40.118"
+        country:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "US"
+            name:
+              type: string
+              example: "United States"
+            wikidata:
+              type: string
+              nullable: true
+        region:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "MI"
+            name:
+              type: string
+              example: "Michigan"
+        city:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "Grand Rapids"
+        postcode:
+          type: string
+          example: "49504"
+        location:
+          type: object
+          properties:
+            latitude:
+              type: number
+              format: double
+              example: 42.9733
+            longitude:
+              type: number
+              format: double
+              example: -85.7286
+            accuracy_radius_km:
+              type: integer
+              description: |
+                Radius (in km) within which MaxMind expects the IP to actually
+                live. Anycast IPs return very large values (e.g. 1000) and
+                receive `confidence: low`.
+              example: 5
+        timezone:
+          type: string
+          example: "America/Detroit"
+        isp:
+          type: object
+          properties:
+            asn:
+              type: integer
+              example: 7018
+            name:
+              type: string
+              example: "AT&T Enterprises, LLC"
+        county:
+          $ref: '#/components/schemas/IPGeoDivision'
+        locality:
+          $ref: '#/components/schemas/IPGeoDivision'
+        confidence:
+          type: string
+          enum: [high, medium, low]
+          description: |
+            Heuristic quality label. `high` requires a tight accuracy radius
+            (≤50 km) **and** a polygon-derived county match. `low` is set
+            for anycast / VPN / corporate / cellular IPs and the response
+            also includes `accuracy_disclaimer`.
+        accuracy_disclaimer:
+          type: string
+          nullable: true
+          description: Surfaced only when `confidence == "low"`.
+        source:
+          type: string
+          example: "maxmind-geolite2"
+        db_build_at:
+          type: string
+          format: date-time
+          description: Timestamp the .mmdb files were last refreshed (weekly cron).
+
+    IPGeoDivision:
+      type: object
+      description: |
+        Polygon-derived division (county or locality) containing the IP's
+        coordinates. Pulled from our division_areas → divisions tables; only
+        present when MaxMind returned a usable postcode.
+      properties:
+        name:
+          type: string
+          example: "Kent County"
+        subtype:
+          type: string
+          example: "county"
+        wikidata:
+          type: string
+          nullable: true
+          example: "Q82499"
