@@ -4,7 +4,7 @@
  */
 
 define('API_KEY', 'YOUR_API_KEY');
-define('BASE_URL', 'https://api.csv2geo.com/v1');
+define('BASE_URL', 'https://csv2geo.com/api/v1');
 
 /**
  * Forward geocode an address to coordinates

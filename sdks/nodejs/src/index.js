@@ -20,7 +20,7 @@ const {
   APIError,
 } = require('./errors');
 
-const DEFAULT_BASE_URL = 'https://api.csv2geo.com/v1';
+const DEFAULT_BASE_URL = 'https://csv2geo.com/api/v1';
 const DEFAULT_TIMEOUT = 30000;
 const MAX_RETRIES = 3;
 
@@ -75,7 +75,7 @@ class Client {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
-          'User-Agent': 'csv2geo-node/1.0.0',
+          'User-Agent': 'csv2geo-node/1.2.0',
         },
         signal: controller.signal,
       };
@@ -562,6 +562,56 @@ class Client {
         country: data.components?.country,
       },
     };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // IP geolocation (Sprint 2.7)
+  //
+  // MaxMind GeoLite2 .mmdb lookup with our county overlay.
+  // Bundled into every plan (including Free); no separate billing.
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * IP → geolocation. Returns country, region, city, postcode, location,
+   * timezone, ISP, and (for residential IPs) county + locality + confidence.
+   *
+   * @param {string} ip - IPv4 or IPv6 address (e.g. "8.8.8.8")
+   * @returns {Promise<Object>} canonical /v1/ip response shape
+   * @example
+   *   const r = await client.ip('8.8.8.8');
+   *   console.log(r.country.code, r.county?.name, r.confidence);
+   */
+  async ip(ip) {
+    if (!ip || typeof ip !== 'string') {
+      throw new InvalidRequestError('ip must be a non-empty string');
+    }
+    return this._request('GET', '/ip', { ip });
+  }
+
+  /**
+   * Like {@link ip}, but uses the requester's IP (the one Laravel sees).
+   * Useful from browser/server contexts where you want "where is the caller".
+   *
+   * @returns {Promise<Object>} canonical /v1/ip response shape
+   */
+  async ipMe() {
+    return this._request('GET', '/ip/me');
+  }
+
+  /**
+   * Batch IP lookup. Up to 1000 IPs per call.
+   *
+   * @param {string[]} ips - array of IPs
+   * @returns {Promise<{results: Object[]}>}
+   */
+  async ipBatch(ips) {
+    if (!Array.isArray(ips) || ips.length === 0) {
+      throw new InvalidRequestError('ips must be a non-empty array');
+    }
+    if (ips.length > 1000) {
+      throw new InvalidRequestError('ipBatch supports at most 1000 IPs per call');
+    }
+    return this._request('POST', '/ip/batch', {}, { ips });
   }
 }
 

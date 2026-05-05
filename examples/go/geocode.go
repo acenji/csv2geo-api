@@ -12,7 +12,7 @@ import (
 
 const (
 	apiKey  = "YOUR_API_KEY"
-	baseURL = "https://api.csv2geo.com/v1"
+	baseURL = "https://csv2geo.com/api/v1"
 )
 
 // Location represents a geographic coordinate

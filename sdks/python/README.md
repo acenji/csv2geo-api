@@ -49,7 +49,7 @@ from csv2geo import Client
 
 client = Client(
     api_key="your_api_key",
-    base_url="https://api.csv2geo.com/v1",  # optional
+    base_url="https://csv2geo.com/api/v1",  # optional
     timeout=30,  # optional, seconds
     auto_retry=True,  # optional, retry on rate limit
 )

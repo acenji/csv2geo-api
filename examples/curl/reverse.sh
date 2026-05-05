@@ -7,4 +7,4 @@ LAT="38.8977"
 LNG="-77.0365"
 
 # Make the request
-curl -s "https://api.csv2geo.com/v1/reverse?lat=${LAT}&lng=${LNG}&api_key=${API_KEY}" | json_pp
+curl -s "https://csv2geo.com/api/v1/reverse?lat=${LAT}&lng=${LNG}&api_key=${API_KEY}" | json_pp

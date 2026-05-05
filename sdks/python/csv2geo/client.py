@@ -39,7 +39,10 @@ class Client:
             print(r.best.formatted_address if r.best else "Not found")
     """
 
-    DEFAULT_BASE_URL = "https://api.csv2geo.com/v1"
+    # Customer-facing base URL — the Laravel proxy at csv2geo.com/api/v1 is
+    # what accepts geo_live_* keys. (api.csv2geo.com/v1 is the internal Go
+    # service and only honors internal keys.)
+    DEFAULT_BASE_URL = "https://csv2geo.com/api/v1"
     DEFAULT_TIMEOUT = 30
     MAX_RETRIES = 3
     RETRY_DELAY = 1  # seconds
@@ -56,7 +59,7 @@ class Client:
 
         Args:
             api_key: Your CSV2GEO API key
-            base_url: API base URL (default: https://api.csv2geo.com/v1)
+            base_url: API base URL (default: https://csv2geo.com/api/v1)
             timeout: Request timeout in seconds (default: 30)
             auto_retry: Automatically retry on rate limit (default: True)
         """
@@ -71,7 +74,7 @@ class Client:
         self._session = requests.Session()
         self._session.headers.update({
             "Authorization": f"Bearer {self.api_key}",
-            "User-Agent": "csv2geo-python/1.0.0",
+            "User-Agent": "csv2geo-python/1.2.0",
             "Content-Type": "application/json",
         })
 
@@ -545,6 +548,58 @@ class Client:
     def division_by_id(self, division_id: str) -> dict:
         """Single division by id. GET /divisions/{id}"""
         return self._request("GET", f"/divisions/{division_id}")
+
+    # ─────────────────────────────────────────────────────────
+    # IP geolocation (Sprint 2.7)
+    #
+    # MaxMind GeoLite2 .mmdb lookup with our county overlay.
+    # Bundled into every plan (including Free); no separate billing.
+    # ─────────────────────────────────────────────────────────
+
+    def ip(self, ip: str) -> dict:
+        """
+        IP → geolocation. Returns country, region, city, postcode, location,
+        timezone, ISP, and (for residential IPs) county + locality + confidence.
+
+        Args:
+            ip: IPv4 or IPv6 address (e.g. "8.8.8.8")
+
+        Returns:
+            Canonical /v1/ip response dict.
+
+        Example:
+            r = client.ip("8.8.8.8")
+            print(r["country"]["code"], r.get("county", {}).get("name"), r["confidence"])
+        """
+        if not ip or not isinstance(ip, str):
+            raise InvalidRequestError("ip must be a non-empty string")
+        return self._request("GET", "/ip", params={"ip": ip})
+
+    def ip_me(self) -> dict:
+        """
+        Like ``ip()``, but uses the requester's IP (the one Laravel sees).
+        Useful from server contexts where you want "where is the caller".
+
+        Returns:
+            Canonical /v1/ip response dict.
+        """
+        return self._request("GET", "/ip/me")
+
+    def ip_batch(self, ips: List[str]) -> dict:
+        """
+        Batch IP lookup. Up to 1000 IPs per call.
+
+        Args:
+            ips: list of IPs
+
+        Returns:
+            ``{"results": [...]}``
+        """
+        if not isinstance(ips, list) or len(ips) == 0:
+            raise InvalidRequestError("ips must be a non-empty list")
+        if len(ips) > 1000:
+            raise InvalidRequestError("ip_batch supports at most 1000 IPs per call")
+        return self._request("POST", "/ip/batch", json={"ips": ips})
 
     # ─────────────────────────────────────────────────────────
     # Coverage

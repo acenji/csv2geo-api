@@ -9,4 +9,4 @@ ADDRESS="1600 Pennsylvania Ave, Washington DC"
 ENCODED_ADDRESS=$(echo "$ADDRESS" | sed 's/ /+/g')
 
 # Make the request
-curl -s "https://api.csv2geo.com/v1/geocode?q=${ENCODED_ADDRESS}&api_key=${API_KEY}" | json_pp
+curl -s "https://csv2geo.com/api/v1/geocode?q=${ENCODED_ADDRESS}&api_key=${API_KEY}" | json_pp
