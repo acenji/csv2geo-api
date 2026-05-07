@@ -3,7 +3,7 @@
  */
 
 export interface ClientOptions {
-  /** API base URL (default: https://api.csv2geo.com/v1) */
+  /** API base URL (default: https://csv2geo.com/api/v1) */
   baseUrl?: string;
   /** Request timeout in milliseconds (default: 30000) */
   timeout?: number;
@@ -105,6 +105,44 @@ export class Client {
    * @returns Array of responses
    */
   reverseBatch(coordinates: Coordinate[]): Promise<GeocodeResponse[]>;
+
+  /**
+   * IP geolocation. Returns country/region/city/postcode/location/timezone/ISP,
+   * plus county + locality + confidence for residential IPs (Sprint 2.7).
+   * @param ip IPv4 or IPv6 string
+   */
+  ip(ip: string): Promise<IPGeoResponse>;
+
+  /**
+   * Like {@link ip}, but uses the requester's IP.
+   */
+  ipMe(): Promise<IPGeoResponse>;
+
+  /**
+   * Batch IP lookup. Up to 1000 IPs per call.
+   */
+  ipBatch(ips: string[]): Promise<{ results: IPGeoResponse[] }>;
+}
+
+export interface IPGeoResponse {
+  ip: string;
+  country?: { code: string; name?: string; wikidata?: string };
+  region?: { code?: string; name?: string };
+  city?: { name: string };
+  postcode?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    accuracy_radius_km: number;
+  };
+  timezone?: string;
+  isp?: { asn?: number; name?: string };
+  county?: { name: string; subtype?: string; wikidata?: string };
+  locality?: { name: string; subtype?: string; wikidata?: string };
+  confidence?: 'high' | 'medium' | 'low';
+  accuracy_disclaimer?: string;
+  source: string;
+  db_build_at?: string;
 }
 
 export class CSV2GEOError extends Error {

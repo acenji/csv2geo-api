@@ -3,7 +3,7 @@
  */
 
 const API_KEY = 'YOUR_API_KEY';
-const BASE_URL = 'https://api.csv2geo.com/v1';
+const BASE_URL = 'https://csv2geo.com/api/v1';
 
 /**
  * Forward geocode an address to coordinates

@@ -114,7 +114,7 @@ open http://localhost:3000/docs/
 - **GitHub Pages** - Free, auto-deploys from main branch
 - **Cloudflare Pages** - Free, fast CDN
 - **Vercel** - Free tier available
-- **Custom domain** - api.csv2geo.com/docs or docs.csv2geo.com
+- **Custom domain** - csv2geo.com/api/docs or docs.csv2geo.com
 
 ### Updating Documentation
 1. Edit `openapi.yaml` (add endpoints, update schemas)
@@ -125,5 +125,5 @@ open http://localhost:3000/docs/
 - [csv2geo](https://csv2geo.com) - Main geocoding application
 
 ## API Base URL
-- **Production**: `https://api.csv2geo.com/v1`
+- **Production**: `https://csv2geo.com/api/v1`
 - **Documentation**: `https://docs.csv2geo.com` (planned)

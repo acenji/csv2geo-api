@@ -51,7 +51,7 @@ if (result) {
 const { Client } = require('csv2geo-sdk');
 
 const client = new Client('your_api_key', {
-  baseUrl: 'https://api.csv2geo.com/v1',  // optional
+  baseUrl: 'https://csv2geo.com/api/v1',  // optional
   timeout: 30000,  // optional, milliseconds
   autoRetry: true,  // optional, retry on rate limit
 });

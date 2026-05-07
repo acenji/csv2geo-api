@@ -1792,8 +1792,10 @@ paths:
     get:
       tags:
         - Divisions
-      summary: Get division hierarchy
-      description: Get the full hierarchy chain for a division (parent, grandparent, etc.)
+      summary: Get immediate sub-divisions (children)
+      description: |
+        Returns the immediate children of a division (entries with parent_division_id == :id).
+        For the walk-UP "part-of" chain, use /divisions/ancestors/{id}.
       operationId: divisionHierarchy
       parameters:
         - name: id
@@ -1803,25 +1805,166 @@ paths:
           schema:
             type: string
           example: "08f28a8f-8c8b-4896-815e-c92c8df0a8a6"
+        - name: subtype
+          in: query
+          required: false
+          description: Filter children by admin subtype
+          schema:
+            type: string
+            example: county
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 100, minimum: 1, maximum: 500 }
       responses:
         '200':
           description: Division hierarchy
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/HierarchyResponse'
+              schema: { $ref: '#/components/schemas/HierarchyResponse' }
         '404':
           description: Division not found
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /divisions/ancestors/{id}:
+    get:
+      tags:
+        - Divisions
+      summary: Walk-up "part-of" chain (Sprint 1.8)
+      description: |
+        Walks `parent_division_id` from the input UP to the root, returning the
+        ordered chain (input → parent → grandparent → ... → country).
+        This is the true "boundaries/part-of" feature.
+      operationId: divisionAncestors
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: include
+          in: query
+          description: Comma list — `geometry` for polygons per level,
+            `other_names` to attach the full translations map per division (Sprint 2.1).
+          schema: { type: string, example: "geometry,other_names" }
+        - name: precision
+          in: query
+          description: Polygon detail tier when include=geometry.
+          schema: { type: string, enum: [low, med, full], default: med }
+        - name: max_depth
+          in: query
+          description: Hard cap on chain length (default 8, max 12).
+          schema: { type: integer, default: 8, minimum: 1, maximum: 12 }
+        - name: lang
+          in: query
+          description: BCP-47 language tag — replaces each `name` with the
+            Overture `names.common[lang]` translation when available, else
+            falls back to base language then to primary (Sprint 2.1).
+          schema: { type: string, example: de }
+      responses:
+        '200':
+          description: Ordered ancestor chain
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: object
+                properties:
+                  id: { type: string }
+                  depth: { type: integer }
+                  results:
+                    type: array
+                    items: { $ref: '#/components/schemas/DivisionResult' }
+        '404':
+          description: Division not found
+
+  /divisions/children/{id}:
+    get:
+      tags:
+        - Divisions
+      summary: Children of a division (Sprint 1.8 — clearer-named alias of /divisions/hierarchy/{id})
+      description: |
+        Returns the immediate sub-divisions of a parent. Identical to
+        /divisions/hierarchy/{id} when no geometry is requested. Adds polygon
+        enrichment per child when ?include=geometry.
+      operationId: divisionChildren
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: include
+          in: query
+          description: Comma list — `geometry` for polygons, `other_names`
+            for translations (Sprint 2.1).
+          schema: { type: string, example: "geometry,other_names" }
+        - name: precision
+          in: query
+          schema: { type: string, enum: [low, med, full], default: med }
+        - name: subtype
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100, minimum: 1, maximum: 500 }
+        - name: lang
+          in: query
+          description: BCP-47 language tag for localizing each child's `name` (Sprint 2.1).
+          schema: { type: string, example: ja }
+      responses:
+        '200':
+          description: Children list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HierarchyResponse' }
+
+  /divisions/consolidated/{id}:
+    get:
+      tags:
+        - Divisions
+      summary: Consolidated entity lookup (Sprint 1.8)
+      description: |
+        Resolves either a canonical id (e.g. NYC) or a member id (any of
+        Manhattan, Brooklyn, Queens, The Bronx, Staten Island) into the
+        consolidated record — canonical division + members[] + matched_as.
+        Source: curated Wikidata P150 mapping.
+      operationId: divisionConsolidated
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: include
+          in: query
+          description: Comma list — `geometry` for canonical polygon, `other_names`
+            for translations on canonical + members (Sprint 2.1).
+          schema: { type: string, example: "geometry,other_names" }
+        - name: precision
+          in: query
+          schema: { type: string, enum: [low, med, full], default: med }
+        - name: lang
+          in: query
+          description: BCP-47 language tag — localizes both the canonical and
+            member division names (Sprint 2.1).
+          schema: { type: string, example: zh-Hant }
+      responses:
+        '200':
+          description: Consolidated entity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  canonical: { $ref: '#/components/schemas/DivisionResult' }
+                  members:
+                    type: array
+                    items: { $ref: '#/components/schemas/DivisionResult' }
+                  matched_as: { type: string, enum: [canonical, member] }
+                  source: { type: string, example: wikidata-p150 }
+        '404':
+          description: Division is not part of any consolidated entity
+        '503':
+          description: consolidated_aliases collection not configured on this cluster
 
   /divisions/{id}:
     get:
@@ -1959,6 +2102,123 @@ paths:
                 $ref: '#/components/schemas/DistanceResponse'
         '400':
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ip:
+    get:
+      tags:
+        - IP Geolocation
+      summary: IP → geolocation (city, region, county, ASN)
+      description: |
+        Submillisecond IP-to-location lookup using MaxMind GeoLite2.
+        Residential and business IPs additionally get a county + locality
+        derived from our division_areas polygons (Sprint 2.7). Anycast IPs
+        (Google DNS, Cloudflare DNS, CDN edges) return country only and
+        are flagged with `confidence: low`.
+
+        **Bundled into every plan including Free** — zero marginal cost,
+        local DB lookup, no third-party API call.
+      operationId: ipLookup
+      parameters:
+        - name: ip
+          in: query
+          required: true
+          description: IPv4 or IPv6 address
+          schema:
+            type: string
+          example: "8.8.8.8"
+      responses:
+        '200':
+          description: IP geolocation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IPGeoResponse'
+        '400':
+          description: Missing or invalid `ip` parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ip/me:
+    get:
+      tags:
+        - IP Geolocation
+      summary: Geolocate the requester's own IP
+      description: |
+        Convenience endpoint that uses the IP address of the request itself
+        (honoring `X-Forwarded-For` from trusted proxies). Otherwise identical
+        to `GET /ip?ip=...`.
+      operationId: ipLookupMe
+      responses:
+        '200':
+          description: IP geolocation result for the requester
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IPGeoResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ip/batch:
+    post:
+      tags:
+        - IP Geolocation
+      summary: Batch IP geolocation
+      description: |
+        Resolve up to 1000 IPs in a single request. Per-IP errors (invalid
+        format etc.) are returned inline in `results` rather than failing
+        the whole batch.
+      operationId: ipLookupBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ips]
+              properties:
+                ips:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  maxItems: 1000
+                  example: ["8.8.8.8", "1.1.1.1", "107.192.40.118"]
+      responses:
+        '200':
+          description: Per-IP results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IPGeoResponse'
+        '400':
+          description: Missing or invalid body (e.g. empty `ips`, more than 1000)
           content:
             application/json:
               schema:
@@ -2367,8 +2627,19 @@ components:
       properties:
         name:
           type: string
-          description: Division name
+          description: Division name. When `?lang=` is passed and a translation
+            is available in `other_names`, this returns the localized name
+            (Sprint 2.1). Falls back to base language ("pt" for "pt-BR")
+            then to primary.
           example: "Los Angeles"
+        other_names:
+          type: object
+          additionalProperties: { type: string }
+          nullable: true
+          description: Map of language tag → translated name. Only populated
+            when `?include=other_names` is passed (Sprint 2.1). Source —
+            Overture `names.common`.
+          example: { de: "Los Angeles", ja: "ロサンゼルス", zh-Hans: "洛杉矶", ar: "لوس أنجلوس" }
         location:
           $ref: '#/components/schemas/Location'
         subtype:
@@ -3089,3 +3360,113 @@ components:
           example: 225.3
         meta:
           $ref: '#/components/schemas/Meta'
+
+    # IP Geolocation
+    IPGeoResponse:
+      type: object
+      required: [ip, source]
+      properties:
+        ip:
+          type: string
+          example: "107.192.40.118"
+        country:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "US"
+            name:
+              type: string
+              example: "United States"
+            wikidata:
+              type: string
+              nullable: true
+        region:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "MI"
+            name:
+              type: string
+              example: "Michigan"
+        city:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "Grand Rapids"
+        postcode:
+          type: string
+          example: "49504"
+        location:
+          type: object
+          properties:
+            latitude:
+              type: number
+              format: double
+              example: 42.9733
+            longitude:
+              type: number
+              format: double
+              example: -85.7286
+            accuracy_radius_km:
+              type: integer
+              description: |
+                Radius (in km) within which MaxMind expects the IP to actually
+                live. Anycast IPs return very large values (e.g. 1000) and
+                receive `confidence: low`.
+              example: 5
+        timezone:
+          type: string
+          example: "America/Detroit"
+        isp:
+          type: object
+          properties:
+            asn:
+              type: integer
+              example: 7018
+            name:
+              type: string
+              example: "AT&T Enterprises, LLC"
+        county:
+          $ref: '#/components/schemas/IPGeoDivision'
+        locality:
+          $ref: '#/components/schemas/IPGeoDivision'
+        confidence:
+          type: string
+          enum: [high, medium, low]
+          description: |
+            Heuristic quality label. `high` requires a tight accuracy radius
+            (≤50 km) **and** a polygon-derived county match. `low` is set
+            for anycast / VPN / corporate / cellular IPs and the response
+            also includes `accuracy_disclaimer`.
+        accuracy_disclaimer:
+          type: string
+          nullable: true
+          description: Surfaced only when `confidence == "low"`.
+        source:
+          type: string
+          example: "maxmind-geolite2"
+        db_build_at:
+          type: string
+          format: date-time
+          description: Timestamp the .mmdb files were last refreshed (weekly cron).
+
+    IPGeoDivision:
+      type: object
+      description: |
+        Polygon-derived division (county or locality) containing the IP's
+        coordinates. Pulled from our division_areas → divisions tables; only
+        present when MaxMind returned a usable postcode.
+      properties:
+        name:
+          type: string
+          example: "Kent County"
+        subtype:
+          type: string
+          example: "county"
+        wikidata:
+          type: string
+          nullable: true
+          example: "Q82499"

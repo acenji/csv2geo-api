@@ -39,7 +39,10 @@ class Client:
             print(r.best.formatted_address if r.best else "Not found")
     """
 
-    DEFAULT_BASE_URL = "https://api.csv2geo.com/v1"
+    # Customer-facing base URL — the Laravel proxy at csv2geo.com/api/v1 is
+    # what accepts geo_live_* keys. (api.csv2geo.com/v1 is the internal Go
+    # service and only honors internal keys.)
+    DEFAULT_BASE_URL = "https://csv2geo.com/api/v1"
     DEFAULT_TIMEOUT = 30
     MAX_RETRIES = 3
     RETRY_DELAY = 1  # seconds
@@ -56,7 +59,7 @@ class Client:
 
         Args:
             api_key: Your CSV2GEO API key
-            base_url: API base URL (default: https://api.csv2geo.com/v1)
+            base_url: API base URL (default: https://csv2geo.com/api/v1)
             timeout: Request timeout in seconds (default: 30)
             auto_retry: Automatically retry on rate limit (default: True)
         """
@@ -71,7 +74,7 @@ class Client:
         self._session = requests.Session()
         self._session.headers.update({
             "Authorization": f"Bearer {self.api_key}",
-            "User-Agent": "csv2geo-python/1.0.0",
+            "User-Agent": "csv2geo-python/1.4.0",
             "Content-Type": "application/json",
         })
 
@@ -497,7 +500,8 @@ class Client:
         return self._request("GET", "/divisions/contains", params={"lat": lat, "lng": lng})
 
     def divisions_by_postcode(self, code: str, country: str,
-                              include: str = None, precision: str = None) -> dict:
+                              include: str = None, precision: str = None,
+                              lang: str = None) -> dict:
         """
         Postcode → boundary (bbox + optional polygon + population + wikidata).
         GET /divisions/by-postcode
@@ -505,16 +509,22 @@ class Client:
         Args:
             code: Postcode in any common format (e.g. "90210", "SW1A 1AA")
             country: ISO 3166-1 alpha-2 code
-            include: "geometry" to include the polygon
-            precision: "simplified" (default, fewer points) or "full"
+            include: Comma list — `geometry`, `meta`, `other_names`
+                (Sprint 2.1 — attaches Overture name translations).
+            precision: "low" (default-ish), "med", or "full"
+            lang: BCP-47 language tag — replaces `name` with the localized
+                Overture translation when available (Sprint 2.1).
 
         Example:
             r = client.divisions_by_postcode("90210", "US", include="geometry")
             print(r["result"]["population"], r["result"]["bbox"])
+            r = client.divisions_by_postcode("SW1A 1AA", "GB", lang="ja")
+            print(r["result"]["name"])  # "ロンドン" instead of "London"
         """
         params = {"code": code, "country": country}
         if include:   params["include"] = include
         if precision: params["precision"] = precision
+        if lang:      params["lang"] = lang
         return self._request("GET", "/divisions/by-postcode", params=params)
 
     def divisions_subtypes(self) -> dict:
@@ -539,12 +549,175 @@ class Client:
         return self._request("GET", "/divisions/random", params=params)
 
     def division_hierarchy(self, division_id: str) -> dict:
-        """Full parent/child chain for a division. GET /divisions/hierarchy/{id}"""
+        """
+        Children of a division (immediate sub-divisions).
+        GET /divisions/hierarchy/{id}
+
+        Note: this returns CHILDREN. For the walk-UP "part-of" chain
+        (input → parent → root) use ``division_ancestors()`` instead. Kept
+        under the original name for backward compatibility.
+        """
         return self._request("GET", f"/divisions/hierarchy/{division_id}")
 
     def division_by_id(self, division_id: str) -> dict:
         """Single division by id. GET /divisions/{id}"""
         return self._request("GET", f"/divisions/{division_id}")
+
+    # ─────────────────────────────────────────────────────────
+    # Boundaries (Sprint 1.8 — ancestors / children / consolidated)
+    # ─────────────────────────────────────────────────────────
+
+    def division_ancestors(
+        self,
+        division_id: str,
+        include: str = None,
+        precision: str = None,
+        max_depth: int = None,
+        lang: str = None,
+    ) -> dict:
+        """
+        Walk-up "part-of" chain: input division → parent → grandparent → root.
+
+        GET /divisions/ancestors/{id}
+
+        Args:
+            division_id: Overture ID of the leaf division.
+            include: ``"geometry"`` to include each level's polygon.
+            precision: ``"low"``, ``"med"`` (default), or ``"full"``. Only meaningful
+                when include=geometry.
+            max_depth: Hard cap on chain length (default 8, max 12).
+
+        Returns:
+            ``{"id": "...", "depth": N, "results": [<DivisionResult>, ...]}``
+
+        Example:
+            chain = client.division_ancestors(beverly_hills_id, include="geometry")
+            for level in chain["results"]:
+                print(level["subtype"], level["name"])
+        """
+        params = {}
+        if include:   params["include"] = include
+        if precision: params["precision"] = precision
+        if max_depth: params["max_depth"] = max_depth
+        if lang:      params["lang"] = lang
+        return self._request("GET", f"/divisions/ancestors/{division_id}", params=params)
+
+    def division_children(
+        self,
+        division_id: str,
+        include: str = None,
+        precision: str = None,
+        subtype: str = None,
+        limit: int = None,
+        lang: str = None,
+    ) -> dict:
+        """
+        Immediate sub-divisions of a division (clearer-named alias of
+        ``division_hierarchy`` plus optional polygon enrichment).
+
+        GET /divisions/children/{id}
+
+        Args:
+            division_id: Overture ID of the parent division.
+            include: ``"geometry"`` to include each child's polygon.
+            precision: ``"low"`` | ``"med"`` (default) | ``"full"``.
+            subtype: Filter children by admin subtype (e.g. "county", "locality").
+            limit: Max children to return (default 100, max 500).
+
+        Returns:
+            ``{"parent_id": "...", "count": N, "results": [<DivisionResult>, ...]}``
+        """
+        params = {}
+        if include:   params["include"] = include
+        if precision: params["precision"] = precision
+        if subtype:   params["subtype"] = subtype
+        if limit:     params["limit"] = limit
+        if lang:      params["lang"] = lang
+        return self._request("GET", f"/divisions/children/{division_id}", params=params)
+
+    def division_consolidated(
+        self,
+        division_id: str,
+        include: str = None,
+        precision: str = None,
+        lang: str = None,
+    ) -> dict:
+        """
+        Consolidated entity lookup. Resolves either canonical OR member id —
+        e.g. any of NYC's 5 borough ids returns the canonical "New York City"
+        record plus all members.
+
+        GET /divisions/consolidated/{id}
+
+        Args:
+            division_id: Overture ID of the canonical or any member division.
+            include: ``"geometry"`` for the canonical's outline polygon.
+            precision: ``"low"`` | ``"med"`` (default) | ``"full"``.
+
+        Returns:
+            ``{"canonical": <DivisionResult>, "members": [...],
+               "matched_as": "canonical" | "member", "source": "wikidata-p150"}``
+
+        Raises:
+            APIError(404) when the id is not part of any consolidated entity.
+        """
+        params = {}
+        if include:   params["include"] = include
+        if precision: params["precision"] = precision
+        if lang:      params["lang"] = lang
+        return self._request("GET", f"/divisions/consolidated/{division_id}", params=params)
+
+    # ─────────────────────────────────────────────────────────
+    # IP geolocation (Sprint 2.7)
+    #
+    # MaxMind GeoLite2 .mmdb lookup with our county overlay.
+    # Bundled into every plan (including Free); no separate billing.
+    # ─────────────────────────────────────────────────────────
+
+    def ip(self, ip: str) -> dict:
+        """
+        IP → geolocation. Returns country, region, city, postcode, location,
+        timezone, ISP, and (for residential IPs) county + locality + confidence.
+
+        Args:
+            ip: IPv4 or IPv6 address (e.g. "8.8.8.8")
+
+        Returns:
+            Canonical /v1/ip response dict.
+
+        Example:
+            r = client.ip("8.8.8.8")
+            print(r["country"]["code"], r.get("county", {}).get("name"), r["confidence"])
+        """
+        if not ip or not isinstance(ip, str):
+            raise InvalidRequestError("ip must be a non-empty string")
+        return self._request("GET", "/ip", params={"ip": ip})
+
+    def ip_me(self) -> dict:
+        """
+        Like ``ip()``, but uses the requester's IP (the one Laravel sees).
+        Useful from server contexts where you want "where is the caller".
+
+        Returns:
+            Canonical /v1/ip response dict.
+        """
+        return self._request("GET", "/ip/me")
+
+    def ip_batch(self, ips: List[str]) -> dict:
+        """
+        Batch IP lookup. Up to 1000 IPs per call.
+
+        Args:
+            ips: list of IPs
+
+        Returns:
+            ``{"results": [...]}``
+        """
+        if not isinstance(ips, list) or len(ips) == 0:
+            raise InvalidRequestError("ips must be a non-empty list")
+        if len(ips) > 1000:
+            raise InvalidRequestError("ip_batch supports at most 1000 IPs per call")
+        return self._request("POST", "/ip/batch", json={"ips": ips})
 
     # ─────────────────────────────────────────────────────────
     # Coverage

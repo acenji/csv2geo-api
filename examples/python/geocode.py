@@ -4,7 +4,7 @@ CSV2GEO API - Python Geocoding Example
 import requests
 
 API_KEY = "YOUR_API_KEY"
-BASE_URL = "https://api.csv2geo.com/v1"
+BASE_URL = "https://csv2geo.com/api/v1"
 
 
 def geocode(address: str) -> dict:
