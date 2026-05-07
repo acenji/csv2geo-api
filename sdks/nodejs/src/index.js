@@ -75,7 +75,7 @@ class Client {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
-          'User-Agent': 'csv2geo-node/1.2.0',
+          'User-Agent': 'csv2geo-node/1.4.0',
         },
         signal: controller.signal,
       };
@@ -469,6 +469,7 @@ class Client {
     const params = { code, country };
     if (options.include)   params.include = options.include;
     if (options.precision) params.precision = options.precision;
+    if (options.lang)      params.lang = options.lang;
     return this._request('GET', '/divisions/by-postcode', params);
   }
 
@@ -497,7 +498,12 @@ class Client {
     return this._request('GET', '/divisions/random', params);
   }
 
-  /** Full parent/child chain for a division. GET /divisions/hierarchy/{id} */
+  /**
+   * Children of a division (immediate sub-divisions). GET /divisions/hierarchy/{id}
+   *
+   * Note: returns CHILDREN, not ancestors. For walk-UP "part-of" chain, use
+   * `divisionAncestors()`. Kept under the original name for backward compatibility.
+   */
   async divisionHierarchy(divisionId) {
     return this._request('GET', `/divisions/hierarchy/${encodeURIComponent(divisionId)}`);
   }
@@ -505,6 +511,77 @@ class Client {
   /** Single division by id. GET /divisions/{id} */
   async divisionById(divisionId) {
     return this._request('GET', `/divisions/${encodeURIComponent(divisionId)}`);
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Boundaries (Sprint 1.8)
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Walk-up "part-of" chain: input → parent → root.
+   * GET /divisions/ancestors/{id}
+   *
+   * @param {string} divisionId - Overture ID of the leaf division.
+   * @param {object} [options]
+   * @param {string} [options.include] - "geometry" to include each level's polygon.
+   * @param {string} [options.precision] - "low" | "med" (default) | "full".
+   * @param {number} [options.maxDepth] - Hard cap (default 8, max 12).
+   * @returns {Promise<{id: string, depth: number, results: object[]}>}
+   *
+   * @example
+   *   const chain = await client.divisionAncestors(beverlyHillsId, { include: 'geometry' });
+   *   chain.results.forEach(level => console.log(level.subtype, level.name));
+   */
+  async divisionAncestors(divisionId, options = {}) {
+    const params = {};
+    if (options.include)   params.include   = options.include;
+    if (options.precision) params.precision = options.precision;
+    if (options.maxDepth)  params.max_depth = options.maxDepth;
+    if (options.lang)      params.lang      = options.lang;
+    return this._request('GET', `/divisions/ancestors/${encodeURIComponent(divisionId)}`, params);
+  }
+
+  /**
+   * Immediate sub-divisions of a division (clearer-named alias of
+   * divisionHierarchy plus optional polygon enrichment).
+   * GET /divisions/children/{id}
+   *
+   * @param {string} divisionId
+   * @param {object} [options]
+   * @param {string} [options.include]   - "geometry" to include polygons.
+   * @param {string} [options.precision] - "low" | "med" (default) | "full".
+   * @param {string} [options.subtype]   - Filter by admin subtype.
+   * @param {number} [options.limit]     - Max children (default 100, max 500).
+   */
+  async divisionChildren(divisionId, options = {}) {
+    const params = {};
+    if (options.include)   params.include   = options.include;
+    if (options.precision) params.precision = options.precision;
+    if (options.subtype)   params.subtype   = options.subtype;
+    if (options.limit)     params.limit     = options.limit;
+    if (options.lang)      params.lang      = options.lang;
+    return this._request('GET', `/divisions/children/${encodeURIComponent(divisionId)}`, params);
+  }
+
+  /**
+   * Consolidated entity lookup. Resolves canonical OR member id — e.g. any of
+   * NYC's 5 borough ids returns the canonical "New York City" record + members.
+   * GET /divisions/consolidated/{id}
+   *
+   * @param {string} divisionId
+   * @param {object} [options]
+   * @param {string} [options.include]   - "geometry" for canonical's outline.
+   * @param {string} [options.precision] - "low" | "med" (default) | "full".
+   * @returns {Promise<{canonical: object, members: object[], matched_as: string, source: string}>}
+   *
+   * @throws ApiError(404) when the id is not part of any consolidated entity.
+   */
+  async divisionConsolidated(divisionId, options = {}) {
+    const params = {};
+    if (options.include)   params.include   = options.include;
+    if (options.precision) params.precision = options.precision;
+    if (options.lang)      params.lang      = options.lang;
+    return this._request('GET', `/divisions/consolidated/${encodeURIComponent(divisionId)}`, params);
   }
 
   // ─────────────────────────────────────────────────────────
