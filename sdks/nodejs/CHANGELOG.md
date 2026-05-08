@@ -24,7 +24,7 @@ All notable changes to the Node SDK are documented here. Format follows [Keep a 
 - `addressesInterpolate(query, country = 'US')` — corrected signature.
   Previously took `(country, city, street, houseNumber)` which the Go
   service silently ignored. Now takes a single free-form `query` (parsed
-  internally with libpostal) plus optional `country`.
+  internally) plus optional `country`.
 - `addressesCrossstreet(lat, lng, options = {})` — corrected signature.
   Previously took `(country, city, streetA, streetB)` which was the
   wrong shape entirely. Now takes a coordinate; options accepts
