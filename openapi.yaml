@@ -51,7 +51,7 @@ info:
 
     Sprint A (2026-05-09) closed the previously-tracked spec ↔ implementation
     gap: every path documented here is now reachable from the customer URL.
-  version: 1.7.0
+  version: 1.7.1
   contact:
     name: Scale Campaign
     url: https://csv2geo.com
@@ -135,9 +135,16 @@ paths:
               * `meta` — adds a `division` block containing the containing locality's
                 name, name_local, name_latin, subtype, population, wikidata, and
                 one-level parent (region/county). No second API call needed.
+              * `other_names` — adds a per-admin-level `other_names` map to each
+                result: `{ "country": { "en": "Austria", "de": "Österreich", ... },
+                "region": { ... }, "locality": { ... } }`. Source:
+                `divisions.name_international` (1.5M divisions, ~78 langs avg).
+                Composable with `?lang=` — primary fields reflect the requested
+                language while this block carries the full translation map.
+                Sprint 2.1d.
           schema:
             type: string
-          example: "meta"
+          example: "meta,other_names"
         - name: lang
           in: query
           required: false

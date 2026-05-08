@@ -50,6 +50,10 @@ class GeocodeResult:
     accuracy: str
     accuracy_score: float
     components: AddressComponents
+    # Sprint 2.1d — per-admin-level translation maps when ?include=other_names.
+    # Outer key is admin subtype ("country", "region", "county", "locality");
+    # inner is BCP-47 lang code → translated name. Empty dict if not requested.
+    other_names: dict = None
 
     @property
     def location(self) -> Location:
@@ -66,6 +70,7 @@ class GeocodeResult:
             accuracy=data.get("accuracy", ""),
             accuracy_score=data.get("accuracy_score", 0.0),
             components=AddressComponents.from_dict(data.get("components", {})),
+            other_names=data.get("other_names") or {},
         )
 
     def to_dict(self) -> dict:
@@ -74,6 +79,7 @@ class GeocodeResult:
             "location": {"lat": self.lat, "lng": self.lng},
             "accuracy": self.accuracy,
             "accuracy_score": self.accuracy_score,
+            "other_names": self.other_names or {},
         }
 
 
