@@ -159,6 +159,7 @@ class Client {
   async geocode(address, options = {}) {
     const params = { q: address };
     if (options.country) params.country = options.country;
+    if (options.lang) params.lang = options.lang;  // Sprint 2.1c
 
     const data = await this._request('GET', '/geocode', params);
     const results = data.results || [];
@@ -168,12 +169,13 @@ class Client {
   /**
    * Geocode with full response
    * @param {string} address - The address to geocode
-   * @param {Object} [options] - Options
+   * @param {Object} [options] - Options { country, lang }
    * @returns {Promise<GeocodeResponse>} Full response with all results
    */
   async geocodeFull(address, options = {}) {
     const params = { q: address };
     if (options.country) params.country = options.country;
+    if (options.lang) params.lang = options.lang;  // Sprint 2.1c
 
     const data = await this._request('GET', '/geocode', params);
     return {
@@ -186,16 +188,17 @@ class Client {
    * Reverse geocode coordinates
    * @param {number} lat - Latitude
    * @param {number} lng - Longitude
+   * @param {Object} [options] - Options { lang } (Sprint 2.1c)
    * @returns {Promise<GeocodeResult|null>} Best result or null if not found
    *
    * @example
-   * const result = await client.reverse(38.8977, -77.0365);
-   * if (result) {
-   *   console.log(result.formattedAddress);
-   * }
+   * const result = await client.reverse(48.2082, 16.3738, { lang: 'de' });
+   * // result.components.country === 'Österreich'
    */
-  async reverse(lat, lng) {
-    const data = await this._request('GET', '/reverse', { lat, lng });
+  async reverse(lat, lng, options = {}) {
+    const params = { lat, lng };
+    if (options.lang) params.lang = options.lang;
+    const data = await this._request('GET', '/reverse', params);
     const results = data.results || [];
     return results.length > 0 ? this._parseResult(results[0]) : null;
   }
@@ -204,10 +207,13 @@ class Client {
    * Reverse geocode with full response
    * @param {number} lat - Latitude
    * @param {number} lng - Longitude
+   * @param {Object} [options] - Options { lang }
    * @returns {Promise<GeocodeResponse>} Full response with all results
    */
-  async reverseFull(lat, lng) {
-    const data = await this._request('GET', '/reverse', { lat, lng });
+  async reverseFull(lat, lng, options = {}) {
+    const params = { lat, lng };
+    if (options.lang) params.lang = options.lang;
+    const data = await this._request('GET', '/reverse', params);
     return {
       query: data.query,
       results: (data.results || []).map(r => this._parseResult(r)),
@@ -217,20 +223,23 @@ class Client {
   /**
    * Batch geocode multiple addresses
    * @param {string[]} addresses - Array of addresses (max 10,000)
+   * @param {Object} [options] - Options { lang } (Sprint 2.1c)
    * @returns {Promise<GeocodeResponse[]>} Array of responses
    *
    * @example
-   * const results = await client.geocodeBatch([
-   *   '1600 Pennsylvania Ave, Washington DC',
-   *   '350 Fifth Avenue, New York, NY',
-   * ]);
+   * const results = await client.geocodeBatch(
+   *   ['1600 Pennsylvania Ave NW Washington DC', 'Champs-Élysées Paris'],
+   *   { lang: 'de' }
+   * );
    */
-  async geocodeBatch(addresses) {
+  async geocodeBatch(addresses, options = {}) {
     if (addresses.length > 10000) {
       throw new InvalidRequestError('Maximum 10,000 addresses per batch request');
     }
 
-    const data = await this._request('POST', '/geocode', {}, { addresses });
+    const params = {};
+    if (options.lang) params.lang = options.lang;
+    const data = await this._request('POST', '/geocode', params, { addresses });
     return (data.results || []).map(r => ({
       query: r.query,
       results: (r.results || []).map(res => this._parseResult(res)),
@@ -248,12 +257,14 @@ class Client {
    *   { lat: 40.7484, lng: -73.9857 },
    * ]);
    */
-  async reverseBatch(coordinates) {
+  async reverseBatch(coordinates, options = {}) {
     if (coordinates.length > 10000) {
       throw new InvalidRequestError('Maximum 10,000 coordinates per batch request');
     }
 
-    const data = await this._request('POST', '/reverse', {}, { coordinates });
+    const params = {};
+    if (options.lang) params.lang = options.lang;  // Sprint 2.1c
+    const data = await this._request('POST', '/reverse', params, { coordinates });
     return (data.results || []).map(r => ({
       query: r.query,
       results: (r.results || []).map(res => this._parseResult(res)),
@@ -336,37 +347,49 @@ class Client {
     return this._request('GET', '/addresses/random', params);
   }
 
-  /** Interpolate a coordinate from address-range data. GET /addresses/interpolate */
-  async addressesInterpolate(country, city, street, houseNumber) {
-    return this._request('GET', '/addresses/interpolate',
-      { country, city, street, house_number: houseNumber });
+  /** Interpolate a coordinate from address-range data. GET /addresses/interpolate
+   *  Go takes a single free-form `q` (parsed internally with libpostal) +
+   *  optional `country`. SDK 1.6.0 fixed the previous (country, city, street,
+   *  houseNumber) signature which was silently ignored by the Go service. */
+  async addressesInterpolate(query, country = 'US') {
+    return this._request('GET', '/addresses/interpolate', { q: query, country });
   }
 
-  /** Find the intersection of two streets. GET /addresses/crossstreet */
-  async addressesCrossstreet(country, city, streetA, streetB) {
-    return this._request('GET', '/addresses/crossstreet',
-      { country, city, street_a: streetA, street_b: streetB });
+  /** Find the cross-street nearest to a coordinate. GET /addresses/crossstreet
+   *  Go takes (lat, lng) and finds nearest intersecting streets. SDK 1.6.0
+   *  fixed the previous (country, city, streetA, streetB) signature — wrong
+   *  shape entirely. */
+  async addressesCrossstreet(lat, lng, options = {}) {
+    const params = { lat, lng };
+    if (options.radius)  params.radius  = options.radius;
+    if (options.country) params.country = options.country;
+    if (options.city)    params.city    = options.city;
+    return this._request('GET', '/addresses/crossstreet', params);
   }
 
   // ─────────────────────────────────────────────────────────
   // Places
   // ─────────────────────────────────────────────────────────
 
-  /** Search places (POIs). GET /places */
+  /** Search places (POIs). GET /places
+   *  options: { q, country, category, limit, lang, includeOtherNames, include } */
   async places(options = {}) {
     const params = {};
     if (options.q || options.query) params.q = options.q || options.query;
     if (options.country)            params.country = options.country;
     if (options.category)           params.category = options.category;
     if (options.limit)              params.limit = options.limit;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places', params);
   }
 
-  /** Places within radius of a coordinate. GET /places/nearby */
+  /** Places within radius of a coordinate. GET /places/nearby
+   *  options: { radius, category, limit, lang, includeOtherNames, include } */
   async placesNearby(lat, lng, options = {}) {
     const params = { lat, lng, radius: options.radius || 200 };
     if (options.category) params.category = options.category;
     if (options.limit)    params.limit = options.limit;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places/nearby', params);
   }
 
@@ -375,11 +398,13 @@ class Client {
     return this._request('GET', '/places/categories');
   }
 
-  /** Random places. GET /places/random */
+  /** Random places. GET /places/random
+   *  options: { country, category, limit, lang, includeOtherNames, include } */
   async placesRandom(options = {}) {
     const params = { limit: options.limit || 1 };
     if (options.country)  params.country = options.country;
     if (options.category) params.category = options.category;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places/random', params);
   }
 
@@ -397,10 +422,12 @@ class Client {
     return this._request('GET', '/places/brands', params);
   }
 
-  /** All locations of a brand/chain. GET /places/chain */
-  async placesChain(brand, country) {
+  /** All locations of a brand/chain. GET /places/chain
+   *  options: { country, lang, includeOtherNames, include } */
+  async placesChain(brand, country, options = {}) {
     const params = { brand };
     if (country) params.country = country;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places/chain', params);
   }
 
@@ -412,24 +439,48 @@ class Client {
     return this._request('GET', '/places/count', params);
   }
 
-  /** Places similar to a given one. GET /places/similar */
+  /** Places similar to a given one. GET /places/similar
+   *  options: { limit, lang, includeOtherNames, include } */
   async placesSimilar(placeId, options = {}) {
     const params = { id: placeId };
     if (options.limit) params.limit = options.limit;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places/similar', params);
   }
 
-  /** Batch nearby-places lookup. POST /places/batch */
+  /** Batch nearby-places lookup. POST /places/batch
+   *  options: { radius, category, lang, includeOtherNames, include } */
   async placesBatch(coordinates, options = {}) {
     if (coordinates.length > 10000) throw new InvalidRequestError('Max 10,000 per batch');
     const body = { coordinates, radius: options.radius || 200 };
     if (options.category) body.category = options.category;
-    return this._request('POST', '/places/batch', {}, body);
+    // lang / include are forwarded via query string (not body)
+    const queryParams = {};
+    this._mergePlacesI18n(queryParams, options);
+    return this._request('POST', '/places/batch', queryParams, body);
   }
 
-  /** Single place by id. GET /places/{id} */
-  async placeById(placeId) {
-    return this._request('GET', `/places/${encodeURIComponent(placeId)}`);
+  /** Single place by id. GET /places/by-id/{id} (customer URL).
+   *  The customer-facing Laravel proxy nests this under /places/by-id/{id}
+   *  even though the underlying Go service uses /places/{id} — SDK MUST
+   *  target the customer path. (Bug fix 1.5.1; was broken in 1.5.0 and
+   *  earlier.)
+   *  options: { lang, includeOtherNames, include } */
+  async placeById(placeId, options = {}) {
+    const params = {};
+    this._mergePlacesI18n(params, options);
+    return this._request('GET', `/places/by-id/${encodeURIComponent(placeId)}`, params);
+  }
+
+  /** Internal: merge ?lang= and ?include=other_names options into params.
+   *  Sprint 2.1b — translations on places (234K places, 17 langs from Overture). */
+  _mergePlacesI18n(params, options) {
+    if (options.lang) params.lang = options.lang;
+    if (options.include) {
+      params.include = options.include;
+    } else if (options.includeOtherNames) {
+      params.include = 'other_names';
+    }
   }
 
   // ─────────────────────────────────────────────────────────
@@ -508,9 +559,18 @@ class Client {
     return this._request('GET', `/divisions/hierarchy/${encodeURIComponent(divisionId)}`);
   }
 
-  /** Single division by id. GET /divisions/{id} */
-  async divisionById(divisionId) {
-    return this._request('GET', `/divisions/${encodeURIComponent(divisionId)}`);
+  /** Single division by id. GET /divisions/by-id/{id} (customer URL).
+   *  Customer Laravel proxy nests this under /by-id/{id} — same naming
+   *  pattern as /places/by-id/{id} (matches the customer URL truth, not
+   *  the Go-internal flatter /divisions/{id} path). SDK 1.6.0 corrected
+   *  this; was 404'ing in 1.5.x.
+   *  options: { lang, include, precision } */
+  async divisionById(divisionId, options = {}) {
+    const params = {};
+    if (options.lang)      params.lang      = options.lang;
+    if (options.include)   params.include   = options.include;
+    if (options.precision) params.precision = options.precision;
+    return this._request('GET', `/divisions/by-id/${encodeURIComponent(divisionId)}`, params);
   }
 
   // ─────────────────────────────────────────────────────────

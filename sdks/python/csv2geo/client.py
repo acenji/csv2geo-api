@@ -157,6 +157,7 @@ class Client:
         self,
         address: str,
         country: str = None,
+        lang: str = None,
     ) -> Optional[GeocodeResult]:
         """
         Geocode a single address.
@@ -164,18 +165,24 @@ class Client:
         Args:
             address: The address to geocode
             country: Limit results to a specific country (ISO 3166-1 alpha-2)
+            lang: BCP-47 tag (e.g. "de", "ja", "zh-Hant"). When set, embedded
+                admin-level names (city, state, country, district) come back
+                in the requested language. Street + house_number stay in
+                source language because Overture has no address-level
+                translation data. Sprint 2.1c.
 
         Returns:
             GeocodeResult or None if not found
 
         Example:
-            result = client.geocode("1600 Pennsylvania Ave, Washington DC")
-            if result:
-                print(f"Lat: {result.lat}, Lng: {result.lng}")
+            result = client.geocode("1010 Vienna", country="AT", lang="de")
+            # result.components.country == "Österreich"
         """
         params = {"q": address}
         if country:
             params["country"] = country
+        if lang:
+            params["lang"] = lang
 
         data = self._request("GET", "/geocode", params=params)
         response = GeocodeResponse.from_dict(data)
@@ -185,6 +192,7 @@ class Client:
         self,
         address: str,
         country: str = None,
+        lang: str = None,
     ) -> GeocodeResponse:
         """
         Geocode a single address and return full response with all results.
@@ -192,6 +200,7 @@ class Client:
         Args:
             address: The address to geocode
             country: Limit results to a specific country (ISO 3166-1 alpha-2)
+            lang: BCP-47 tag for translated admin-level names. See geocode().
 
         Returns:
             GeocodeResponse with all matching results
@@ -199,6 +208,8 @@ class Client:
         params = {"q": address}
         if country:
             params["country"] = country
+        if lang:
+            params["lang"] = lang
 
         data = self._request("GET", "/geocode", params=params)
         return GeocodeResponse.from_dict(data)
@@ -207,6 +218,7 @@ class Client:
         self,
         lat: float,
         lng: float,
+        lang: str = None,
     ) -> Optional[GeocodeResult]:
         """
         Reverse geocode coordinates to an address.
@@ -214,16 +226,18 @@ class Client:
         Args:
             lat: Latitude
             lng: Longitude
+            lang: BCP-47 tag for translated admin-level names. See geocode().
 
         Returns:
             GeocodeResult or None if not found
 
         Example:
-            result = client.reverse(38.8977, -77.0365)
-            if result:
-                print(result.formatted_address)
+            result = client.reverse(48.2082, 16.3738, lang="de")
+            # result.components.country == "Österreich"
         """
         params = {"lat": lat, "lng": lng}
+        if lang:
+            params["lang"] = lang
         data = self._request("GET", "/reverse", params=params)
         response = GeocodeResponse.from_dict(data)
         return response.best
@@ -232,6 +246,7 @@ class Client:
         self,
         lat: float,
         lng: float,
+        lang: str = None,
     ) -> GeocodeResponse:
         """
         Reverse geocode coordinates and return full response.
@@ -239,46 +254,52 @@ class Client:
         Args:
             lat: Latitude
             lng: Longitude
+            lang: BCP-47 tag for translated admin-level names.
 
         Returns:
             GeocodeResponse with all matching results
         """
         params = {"lat": lat, "lng": lng}
+        if lang:
+            params["lang"] = lang
         data = self._request("GET", "/reverse", params=params)
         return GeocodeResponse.from_dict(data)
 
     def geocode_batch(
         self,
         addresses: List[str],
+        lang: str = None,
     ) -> List[GeocodeResponse]:
         """
         Geocode multiple addresses in a single request.
 
         Args:
             addresses: List of addresses to geocode (max 10,000)
+            lang: BCP-47 tag — applied to every result in the batch.
 
         Returns:
             List of GeocodeResponse objects
 
         Example:
-            results = client.geocode_batch([
-                "1600 Pennsylvania Ave, Washington DC",
-                "350 Fifth Avenue, New York, NY",
-            ])
-            for r in results:
-                if r.best:
-                    print(f"{r.query}: {r.best.lat}, {r.best.lng}")
+            results = client.geocode_batch(
+                ["1600 Pennsylvania Ave NW, Washington DC", "Champs-Élysées Paris"],
+                lang="de",
+            )
         """
         if len(addresses) > 10000:
             raise InvalidRequestError("Maximum 10,000 addresses per batch request")
 
-        data = self._request("POST", "/geocode", json={"addresses": addresses})
+        params = {}
+        if lang:
+            params["lang"] = lang
+        data = self._request("POST", "/geocode", params=params, json={"addresses": addresses})
         response = BatchGeocodeResponse.from_dict(data)
         return response.results
 
     def reverse_batch(
         self,
         coordinates: List[Union[Tuple[float, float], Location, dict]],
+        lang: str = None,
     ) -> List[GeocodeResponse]:
         """
         Reverse geocode multiple coordinates in a single request.
@@ -316,7 +337,10 @@ class Client:
                     f"Invalid coordinate format: {type(coord)}"
                 )
 
-        data = self._request("POST", "/reverse", json={"coordinates": coords_list})
+        params = {}
+        if lang:
+            params["lang"] = lang
+        data = self._request("POST", "/reverse", params=params, json={"coordinates": coords_list})
         response = BatchGeocodeResponse.from_dict(data)
         return response.results
 
@@ -388,49 +412,76 @@ class Client:
         if country: params["country"] = country
         return self._request("GET", "/addresses/random", params=params)
 
-    def addresses_interpolate(self, country: str, city: str, street: str, house_number: str) -> dict:
-        """Interpolate a coordinate from address-range data. GET /addresses/interpolate"""
-        return self._request("GET", "/addresses/interpolate", params={
-            "country": country, "city": city, "street": street, "house_number": house_number,
-        })
+    def addresses_interpolate(self, query: str, country: str = "US") -> dict:
+        """Interpolate a coordinate from address-range data. GET /addresses/interpolate
 
-    def addresses_crossstreet(self, country: str, city: str, street_a: str, street_b: str) -> dict:
-        """Find the intersection of two streets. GET /addresses/crossstreet"""
-        return self._request("GET", "/addresses/crossstreet", params={
-            "country": country, "city": city, "street_a": street_a, "street_b": street_b,
-        })
+        The Go service takes a single free-form `q` (parsed internally with
+        libpostal) plus optional `country`. SDK 1.6.0 fixed the previous
+        signature which sent (country, city, street, house_number) — those
+        params were silently ignored by Go.
+        """
+        return self._request("GET", "/addresses/interpolate", params={"q": query, "country": country})
+
+    def addresses_crossstreet(self, lat: float, lng: float, radius: int = 100,
+                              country: str = None, city: str = None) -> dict:
+        """Find the cross-street nearest to a coordinate. GET /addresses/crossstreet
+
+        The Go service takes (lat, lng) and finds the nearest intersecting
+        streets. SDK 1.6.0 fixed the previous signature which sent
+        (country, city, street_a, street_b) — wrong shape entirely.
+        """
+        params = {"lat": lat, "lng": lng, "radius": radius}
+        if country: params["country"] = country
+        if city:    params["city"]    = city
+        return self._request("GET", "/addresses/crossstreet", params=params)
 
     # ─────────────────────────────────────────────────────────
     # Places
     # ─────────────────────────────────────────────────────────
 
     def places(self, query: str = None, country: str = None, category: str = None,
-               limit: int = None) -> dict:
-        """Search places (POIs) by name / category. GET /places"""
+               limit: int = None, lang: str = None, include_other_names: bool = False,
+               include: str = None) -> dict:
+        """Search places (POIs) by name / category. GET /places
+
+        Args:
+            lang: BCP-47 tag (e.g. 'ja', 'de', 'pt-BR') — swaps `name` for the
+                Overture translation when available (Sprint 2.1b).
+            include_other_names: attach the full translation map under
+                `other_names` on each result.
+            include: comma list — e.g. 'other_names'. Overrides include_other_names.
+        """
         params = {}
         if query:    params["q"] = query
         if country:  params["country"] = country
         if category: params["category"] = category
         if limit:    params["limit"] = limit
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places", params=params)
 
     def places_nearby(self, lat: float, lng: float, radius_m: int = 200,
-                      category: str = None, limit: int = None) -> dict:
+                      category: str = None, limit: int = None,
+                      lang: str = None, include_other_names: bool = False,
+                      include: str = None) -> dict:
         """Places within radius of a coordinate. GET /places/nearby"""
         params = {"lat": lat, "lng": lng, "radius": radius_m}
         if category: params["category"] = category
         if limit:    params["limit"] = limit
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places/nearby", params=params)
 
     def places_categories(self) -> dict:
         """List all place categories. GET /places/categories"""
         return self._request("GET", "/places/categories")
 
-    def places_random(self, country: str = None, category: str = None, limit: int = 1) -> dict:
+    def places_random(self, country: str = None, category: str = None, limit: int = 1,
+                      lang: str = None, include_other_names: bool = False,
+                      include: str = None) -> dict:
         """Random places. GET /places/random"""
         params = {"limit": limit}
         if country:  params["country"] = country
         if category: params["category"] = category
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places/random", params=params)
 
     def places_stats(self, country: str = None) -> dict:
@@ -445,10 +496,13 @@ class Client:
         if country: params["country"] = country
         return self._request("GET", "/places/brands", params=params)
 
-    def places_chain(self, brand: str, country: str = None) -> dict:
+    def places_chain(self, brand: str, country: str = None,
+                     lang: str = None, include_other_names: bool = False,
+                     include: str = None) -> dict:
         """All locations of a brand/chain. GET /places/chain"""
         params = {"brand": brand}
         if country: params["country"] = country
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places/chain", params=params)
 
     def places_count(self, country: str = None, category: str = None) -> dict:
@@ -458,14 +512,19 @@ class Client:
         if category: params["category"] = category
         return self._request("GET", "/places/count", params=params)
 
-    def places_similar(self, place_id: str, limit: int = None) -> dict:
+    def places_similar(self, place_id: str, limit: int = None,
+                       lang: str = None, include_other_names: bool = False,
+                       include: str = None) -> dict:
         """Places similar to a given one. GET /places/similar"""
         params = {"id": place_id}
         if limit: params["limit"] = limit
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places/similar", params=params)
 
     def places_batch(self, coordinates: List[Union[Tuple[float, float], dict]],
-                     radius_m: int = 200, category: str = None) -> dict:
+                     radius_m: int = 200, category: str = None,
+                     lang: str = None, include_other_names: bool = False,
+                     include: str = None) -> dict:
         """Batch nearby-places lookup. POST /places/batch"""
         if len(coordinates) > 10000:
             raise InvalidRequestError("Max 10,000 per batch")
@@ -475,11 +534,32 @@ class Client:
         ]
         body = {"coordinates": coords, "radius": radius_m}
         if category: body["category"] = category
-        return self._request("POST", "/places/batch", json=body)
+        # lang / include go on the query string (not body) per Go handler contract
+        params = {}
+        self._merge_places_i18n(params, lang, include_other_names, include)
+        return self._request("POST", "/places/batch", params=params, json=body)
 
-    def place_by_id(self, place_id: str) -> dict:
-        """Single place by id. GET /places/{id}"""
-        return self._request("GET", f"/places/{place_id}")
+    def place_by_id(self, place_id: str, lang: str = None,
+                    include_other_names: bool = False, include: str = None) -> dict:
+        """Single place by id. GET /places/by-id/{id} (customer URL).
+
+        The customer-facing Laravel proxy nests this under `/places/by-id/{id}`
+        even though the underlying Go service uses `/places/{id}` — SDK MUST
+        target the customer path. (Bug fix 1.5.1; was broken in 1.5.0 and
+        earlier.)
+        """
+        params = {}
+        self._merge_places_i18n(params, lang, include_other_names, include)
+        return self._request("GET", f"/places/by-id/{place_id}", params=params)
+
+    def _merge_places_i18n(self, params: dict, lang, include_other_names, include) -> None:
+        """Internal: attach Sprint 2.1b lang / include params to a places request."""
+        if lang:
+            params["lang"] = lang
+        if include:
+            params["include"] = include
+        elif include_other_names:
+            params["include"] = "other_names"
 
     # ─────────────────────────────────────────────────────────
     # Divisions (Sprint 1 — postcode boundary)
@@ -559,9 +639,20 @@ class Client:
         """
         return self._request("GET", f"/divisions/hierarchy/{division_id}")
 
-    def division_by_id(self, division_id: str) -> dict:
-        """Single division by id. GET /divisions/{id}"""
-        return self._request("GET", f"/divisions/{division_id}")
+    def division_by_id(self, division_id: str, lang: str = None,
+                       include: str = None, precision: str = None) -> dict:
+        """Single division by id. GET /divisions/by-id/{id} (customer URL).
+
+        Customer Laravel proxy nests this under /by-id/{id} — same naming
+        pattern as /places/by-id/{id} (matches the customer URL truth, not
+        the Go-internal flatter /divisions/{id} path). SDK 1.6.0 corrected
+        this; was 404'ing in 1.5.x.
+        """
+        params = {}
+        if lang:      params["lang"] = lang
+        if include:   params["include"] = include
+        if precision: params["precision"] = precision
+        return self._request("GET", f"/divisions/by-id/{division_id}", params=params)
 
     # ─────────────────────────────────────────────────────────
     # Boundaries (Sprint 1.8 — ancestors / children / consolidated)

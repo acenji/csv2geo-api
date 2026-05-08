@@ -42,7 +42,16 @@ info:
     | Starter | 1,000 | 1,000 |
     | Growth | 5,000 | 5,000 |
     | Pro | 10,000 | 10,000 |
-  version: 1.0.0
+
+    ## Customer URL is canonical
+    Every path in this spec is a path on `https://csv2geo.com/api/v1/`. The
+    underlying Go service uses slightly different internal paths (e.g.
+    `/places/{id}`, `/divisions/{id}`); customers MUST use the customer paths
+    shown here, which nest under `/by-id/{id}` for clarity.
+
+    Sprint A (2026-05-09) closed the previously-tracked spec ↔ implementation
+    gap: every path documented here is now reachable from the customer URL.
+  version: 1.7.0
   contact:
     name: Scale Campaign
     url: https://csv2geo.com
@@ -72,6 +81,8 @@ tags:
     description: Search 72M+ POIs - businesses, landmarks, restaurants, and more
   - name: Divisions
     description: 4.6M+ administrative boundaries - cities, counties, neighborhoods, states
+  - name: Coverage
+    description: Per-country and aggregate dataset coverage statistics
   - name: Utilities
     description: Timezone lookup, distance calculations, and system health
 
@@ -127,6 +138,20 @@ paths:
           schema:
             type: string
           example: "meta"
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag (e.g. `de`, `ja`, `zh-Hant`). When set, the
+            embedded admin-level names in `components` (city, state, country,
+            district) come back in the requested language using the
+            `divisions.name_international` map (1.5M divisions across ~78
+            languages on average). Street + house_number stay in source
+            language because Overture has no address-level translation data.
+            Sprint 2.1c — drop-in compatible with Geoapify's response shape.
+          schema:
+            type: string
+          example: "de"
       responses:
         '200':
           description: Successful geocoding response
@@ -291,6 +316,16 @@ paths:
             minimum: 1
             maximum: 1000
             default: 200
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag (e.g. `de`, `ja`, `zh-Hant`). Translates
+            embedded admin-level names (city, state, country, district)
+            using `divisions.name_international`. Sprint 2.1c.
+          schema:
+            type: string
+          example: "de"
         - name: places_limit
           in: query
           required: false
@@ -1037,6 +1072,21 @@ paths:
             minimum: 1
             maximum: 50
             default: 10
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available, falling back to base language then
+            primary (Sprint 2.1b — 234K places across 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. Currently `other_names` — attaches the full
+            translations map under `other_names` on each result.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Successful search response
@@ -1118,6 +1168,19 @@ paths:
             minimum: 1
             maximum: 50
             default: 10
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Successful nearby search response
@@ -1213,6 +1276,19 @@ paths:
             minimum: 1
             maximum: 100
             default: 10
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Random places
@@ -1332,6 +1408,19 @@ paths:
             minimum: 1
             maximum: 1000
             default: 100
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Chain locations
@@ -1435,6 +1524,19 @@ paths:
             minimum: 1
             maximum: 50
             default: 10
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Similar places
@@ -1462,6 +1564,21 @@ paths:
       summary: Batch lookup places by ID
       description: Retrieve multiple places by their IDs in a single request
       operationId: batchPlaces
+      parameters:
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+            Forwarded as a query param even on this POST endpoint.
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       requestBody:
         required: true
         content:
@@ -1488,12 +1605,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /places/{id}:
+  /places/by-id/{id}:
     get:
       tags:
         - Places
       summary: Get place by ID
-      description: Retrieve detailed information about a specific place
+      description: |
+        Retrieve detailed information about a specific place by its Overture ID.
+
+        **Customer URL path is `/places/by-id/{id}`** (the underlying Go service
+        uses `/places/{id}` internally; the Laravel proxy nests under `/by-id/`
+        for clarity in the URL hierarchy).
       operationId: getPlace
       parameters:
         - name: id
@@ -1503,6 +1625,19 @@ paths:
           schema:
             type: string
           example: "08f28a8f-8c8b-4896-815e-c92c8df0a8a6"
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Place details
@@ -1584,6 +1719,166 @@ paths:
                   status: 400
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /divisions/by-postcode:
+    get:
+      tags:
+        - Divisions
+      summary: Postcode → boundary (one-call)
+      description: |
+        Resolve a postcode + country code to its administrative division: bbox,
+        polygon, population, Wikidata ID, parent admin chain — all in one
+        nested response. The flagship one-call boundaries endpoint shipped in
+        Sprint 1.
+
+        Most other boundary APIs require two calls (geocode for an opaque
+        place_id, then a separate fetch for the polygon). This endpoint gives
+        you everything in a single billed request.
+      operationId: divisionByPostcode
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: Postcode / postal code. Country-aware normalization
+            handles formats like "SW1A 1AA" (UK), "100-0001" (JP), "75001" (FR).
+          schema: { type: string, example: "90210" }
+        - name: country
+          in: query
+          required: true
+          description: ISO 3166-1 alpha-2 country code.
+          schema: { type: string, example: "US" }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `geometry` adds the polygon at the requested precision;
+            `other_names` attaches the full translations map (Sprint 2.1).
+          schema: { type: string, example: "geometry,other_names" }
+        - name: precision
+          in: query
+          required: false
+          description: Polygon detail tier when include=geometry.
+          schema: { type: string, enum: [low, med, full], default: med }
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces the division `name` with the
+            Overture translation when available. Falls back to base language
+            then to primary.
+          schema: { type: string, example: de }
+      responses:
+        '200':
+          description: Division resolved (with optional geometry + translations)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: object
+                    properties:
+                      postcode: { type: string }
+                      country:  { type: string }
+                  result:
+                    $ref: '#/components/schemas/DivisionResult'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+        '400':
+          description: Missing required parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Postcode not found in the requested country
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coverage:
+    get:
+      tags:
+        - Coverage
+      summary: Per-country boundary coverage
+      description: |
+        Returns boundary tier (A/B), division count, and polygon count
+        per country. Useful for showing which countries are deep-coverage
+        (Tier A — addresses + boundaries) vs boundary-only (Tier B).
+      operationId: coverage
+      responses:
+        '200':
+          description: Per-country boundary coverage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  countries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code:      { type: string, description: ISO 3166-1 alpha-2 }
+                        tier:      { type: string, enum: [A, B], description: A = addresses + boundaries; B = boundaries only }
+                        divisions: { type: integer }
+                        polygons:  { type: integer }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coverage-stats:
+    get:
+      tags:
+        - Coverage
+      summary: Aggregate dataset stats
+      description: |
+        Returns top-level totals (addresses, places, countries) across the
+        entire dataset, plus a per-country breakdown ordered by address count.
+        Powers the homepage stats. No API key required (public endpoint).
+      operationId: coverageStats
+      security: []   # Public endpoint — no API key required
+      responses:
+        '200':
+          description: Aggregate stats + per-country breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:         { type: boolean, example: true }
+                  total_addresses: { type: integer, example: 460734720 }
+                  total_places:    { type: integer, example: 46318120 }
+                  total_countries: { type: integer, example: 39 }
+                  countries:
+                    type: array
+                    description: Per-country breakdown, ordered by address count
+                    items:
+                      type: object
+                      properties:
+                        country:   { type: string, example: "United States" }
+                        code:      { type: string, example: "US", description: ISO 3166-1 alpha-2 }
+                        addresses: { type: integer, example: 121533307 }
+                        formatted: { type: string, example: "121M" }
+                        places:    { type: integer, example: 15521986 }
+                        lat:       { type: number }
+                        lng:       { type: number }
+        '429':
+          description: Anonymous rate limit exceeded
           content:
             application/json:
               schema:
@@ -1966,12 +2261,16 @@ paths:
         '503':
           description: consolidated_aliases collection not configured on this cluster
 
-  /divisions/{id}:
+  /divisions/by-id/{id}:
     get:
       tags:
         - Divisions
       summary: Get division by ID
-      description: Retrieve detailed information about a specific division
+      description: |
+        Retrieve detailed information about a specific division by its
+        Overture ID. Customer URL nests under `/by-id/{id}` for consistency
+        with `/places/by-id/{id}`; the underlying Go service uses the flatter
+        `/divisions/{id}` path internally.
       operationId: getDivision
       parameters:
         - name: id
@@ -2243,6 +2542,41 @@ components:
       description: API key passed as Bearer token in Authorization header
 
   schemas:
+    RankInfo:
+      type: object
+      description: |
+        Geoapify-shaped result-quality block. All three fields are optional —
+        which fields appear depends on the endpoint:
+          - Geocoding (`/geocode`, `/reverse`): emits `confidence` + `match_type`
+            (the strength + nature of the address match).
+          - Divisions (`/divisions/*`): emits `importance` only (Wikipedia
+            popularity, useful for ranking divisions when multiple match a
+            query).
+      properties:
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Match strength (0-1) for the address geocode.
+          example: 0.95
+        match_type:
+          type: string
+          description: Nature of the geocoding match (full_match, fuzzy_match, fallback, etc.).
+          example: full_match
+        importance:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: |
+            Globally-recognized popularity score (0-1) for this entity. Sourced
+            from Wikidata sitelink count — more language editions of Wikipedia
+            with an article = higher importance. Backfilled on 1.02M divisions
+            (Sprint B 2026-05-09). NYC and Paris both score 1.0; Tokyo 0.9994;
+            small rural divisions ~0.2.
+          example: 0.9803
+
     GeocodeResponse:
       type: object
       properties:
@@ -2276,6 +2610,11 @@ components:
           format: float
           description: Confidence score (0-1)
           example: 0.98
+        rank:
+          $ref: '#/components/schemas/RankInfo'
+          description: |
+            Result-quality block (Sprint 2.0). Emits `confidence` + `match_type`
+            on geocoding results.
         components:
           $ref: '#/components/schemas/AddressComponents'
         source:
@@ -2564,6 +2903,19 @@ components:
           nullable: true
           description: Operating status (e.g., "open", "closed_permanently")
           example: "open"
+        other_names:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string
+          description: |
+            Multi-language translation map. Present when `?include=other_names`
+            is passed AND the place has language-tagged variants in Overture
+            `names.rules`. Sourced from Overture; 234K places have a translation
+            map across 17 languages today (Sprint 2.1b).
+          example:
+            en: "CoCo Ichibanya"
+            ja: "CoCo壱番屋"
 
     PlacesSearchResponse:
       type: object
@@ -2670,6 +3022,14 @@ components:
           nullable: true
           description: Overture ID of the parent division
           example: "9b3d1c83-d266-4c67-b21f-6ff37f4d6ccb"
+        rank:
+          $ref: '#/components/schemas/RankInfo'
+          description: |
+            Result-quality block. On division responses, only `importance`
+            is populated — a 0-1 score derived from Wikidata sitelink count
+            (Sprint B 2026-05-09). Use it to rank divisions when multiple
+            match a query — Tokyo, Paris, NYC ≈ 1.0; small rural divisions
+            ~0.2. About 22% of divisions (~1.02M) have a value.
 
     DivisionsSearchResponse:
       type: object
