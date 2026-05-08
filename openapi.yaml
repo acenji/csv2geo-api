@@ -2518,6 +2518,41 @@ components:
       description: API key passed as Bearer token in Authorization header
 
   schemas:
+    RankInfo:
+      type: object
+      description: |
+        Geoapify-shaped result-quality block. All three fields are optional —
+        which fields appear depends on the endpoint:
+          - Geocoding (`/geocode`, `/reverse`): emits `confidence` + `match_type`
+            (the strength + nature of the address match).
+          - Divisions (`/divisions/*`): emits `importance` only (Wikipedia
+            popularity, useful for ranking divisions when multiple match a
+            query).
+      properties:
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Match strength (0-1) for the address geocode.
+          example: 0.95
+        match_type:
+          type: string
+          description: Nature of the geocoding match (full_match, fuzzy_match, fallback, etc.).
+          example: full_match
+        importance:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: |
+            Globally-recognized popularity score (0-1) for this entity. Sourced
+            from Wikidata sitelink count — more language editions of Wikipedia
+            with an article = higher importance. Backfilled on 1.02M divisions
+            (Sprint B 2026-05-09). NYC and Paris both score 1.0; Tokyo 0.9994;
+            small rural divisions ~0.2.
+          example: 0.9803
+
     GeocodeResponse:
       type: object
       properties:
@@ -2551,6 +2586,11 @@ components:
           format: float
           description: Confidence score (0-1)
           example: 0.98
+        rank:
+          $ref: '#/components/schemas/RankInfo'
+          description: |
+            Result-quality block (Sprint 2.0). Emits `confidence` + `match_type`
+            on geocoding results.
         components:
           $ref: '#/components/schemas/AddressComponents'
         source:
@@ -2958,6 +2998,14 @@ components:
           nullable: true
           description: Overture ID of the parent division
           example: "9b3d1c83-d266-4c67-b21f-6ff37f4d6ccb"
+        rank:
+          $ref: '#/components/schemas/RankInfo'
+          description: |
+            Result-quality block. On division responses, only `importance`
+            is populated — a 0-1 score derived from Wikidata sitelink count
+            (Sprint B 2026-05-09). Use it to rank divisions when multiple
+            match a query — Tokyo, Paris, NYC ≈ 1.0; small rural divisions
+            ~0.2. About 22% of divisions (~1.02M) have a value.
 
     DivisionsSearchResponse:
       type: object
