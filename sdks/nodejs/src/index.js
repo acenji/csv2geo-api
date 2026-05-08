@@ -159,6 +159,7 @@ class Client {
   async geocode(address, options = {}) {
     const params = { q: address };
     if (options.country) params.country = options.country;
+    if (options.lang) params.lang = options.lang;  // Sprint 2.1c
 
     const data = await this._request('GET', '/geocode', params);
     const results = data.results || [];
@@ -168,12 +169,13 @@ class Client {
   /**
    * Geocode with full response
    * @param {string} address - The address to geocode
-   * @param {Object} [options] - Options
+   * @param {Object} [options] - Options { country, lang }
    * @returns {Promise<GeocodeResponse>} Full response with all results
    */
   async geocodeFull(address, options = {}) {
     const params = { q: address };
     if (options.country) params.country = options.country;
+    if (options.lang) params.lang = options.lang;  // Sprint 2.1c
 
     const data = await this._request('GET', '/geocode', params);
     return {
@@ -186,16 +188,17 @@ class Client {
    * Reverse geocode coordinates
    * @param {number} lat - Latitude
    * @param {number} lng - Longitude
+   * @param {Object} [options] - Options { lang } (Sprint 2.1c)
    * @returns {Promise<GeocodeResult|null>} Best result or null if not found
    *
    * @example
-   * const result = await client.reverse(38.8977, -77.0365);
-   * if (result) {
-   *   console.log(result.formattedAddress);
-   * }
+   * const result = await client.reverse(48.2082, 16.3738, { lang: 'de' });
+   * // result.components.country === 'Österreich'
    */
-  async reverse(lat, lng) {
-    const data = await this._request('GET', '/reverse', { lat, lng });
+  async reverse(lat, lng, options = {}) {
+    const params = { lat, lng };
+    if (options.lang) params.lang = options.lang;
+    const data = await this._request('GET', '/reverse', params);
     const results = data.results || [];
     return results.length > 0 ? this._parseResult(results[0]) : null;
   }
@@ -204,10 +207,13 @@ class Client {
    * Reverse geocode with full response
    * @param {number} lat - Latitude
    * @param {number} lng - Longitude
+   * @param {Object} [options] - Options { lang }
    * @returns {Promise<GeocodeResponse>} Full response with all results
    */
-  async reverseFull(lat, lng) {
-    const data = await this._request('GET', '/reverse', { lat, lng });
+  async reverseFull(lat, lng, options = {}) {
+    const params = { lat, lng };
+    if (options.lang) params.lang = options.lang;
+    const data = await this._request('GET', '/reverse', params);
     return {
       query: data.query,
       results: (data.results || []).map(r => this._parseResult(r)),
@@ -217,20 +223,23 @@ class Client {
   /**
    * Batch geocode multiple addresses
    * @param {string[]} addresses - Array of addresses (max 10,000)
+   * @param {Object} [options] - Options { lang } (Sprint 2.1c)
    * @returns {Promise<GeocodeResponse[]>} Array of responses
    *
    * @example
-   * const results = await client.geocodeBatch([
-   *   '1600 Pennsylvania Ave, Washington DC',
-   *   '350 Fifth Avenue, New York, NY',
-   * ]);
+   * const results = await client.geocodeBatch(
+   *   ['1600 Pennsylvania Ave NW Washington DC', 'Champs-Élysées Paris'],
+   *   { lang: 'de' }
+   * );
    */
-  async geocodeBatch(addresses) {
+  async geocodeBatch(addresses, options = {}) {
     if (addresses.length > 10000) {
       throw new InvalidRequestError('Maximum 10,000 addresses per batch request');
     }
 
-    const data = await this._request('POST', '/geocode', {}, { addresses });
+    const params = {};
+    if (options.lang) params.lang = options.lang;
+    const data = await this._request('POST', '/geocode', params, { addresses });
     return (data.results || []).map(r => ({
       query: r.query,
       results: (r.results || []).map(res => this._parseResult(res)),
@@ -248,12 +257,14 @@ class Client {
    *   { lat: 40.7484, lng: -73.9857 },
    * ]);
    */
-  async reverseBatch(coordinates) {
+  async reverseBatch(coordinates, options = {}) {
     if (coordinates.length > 10000) {
       throw new InvalidRequestError('Maximum 10,000 coordinates per batch request');
     }
 
-    const data = await this._request('POST', '/reverse', {}, { coordinates });
+    const params = {};
+    if (options.lang) params.lang = options.lang;  // Sprint 2.1c
+    const data = await this._request('POST', '/reverse', params, { coordinates });
     return (data.results || []).map(r => ({
       query: r.query,
       results: (r.results || []).map(res => this._parseResult(res)),

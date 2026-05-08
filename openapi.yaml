@@ -51,7 +51,7 @@ info:
 
     Sprint A (2026-05-09) closed the previously-tracked spec ↔ implementation
     gap: every path documented here is now reachable from the customer URL.
-  version: 1.6.0
+  version: 1.7.0
   contact:
     name: Scale Campaign
     url: https://csv2geo.com
@@ -138,6 +138,20 @@ paths:
           schema:
             type: string
           example: "meta"
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag (e.g. `de`, `ja`, `zh-Hant`). When set, the
+            embedded admin-level names in `components` (city, state, country,
+            district) come back in the requested language using the
+            `divisions.name_international` map (1.5M divisions across ~78
+            languages on average). Street + house_number stay in source
+            language because Overture has no address-level translation data.
+            Sprint 2.1c — drop-in compatible with Geoapify's response shape.
+          schema:
+            type: string
+          example: "de"
       responses:
         '200':
           description: Successful geocoding response
@@ -302,6 +316,16 @@ paths:
             minimum: 1
             maximum: 1000
             default: 200
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag (e.g. `de`, `ja`, `zh-Hant`). Translates
+            embedded admin-level names (city, state, country, district)
+            using `divisions.name_international`. Sprint 2.1c.
+          schema:
+            type: string
+          example: "de"
         - name: places_limit
           in: query
           required: false

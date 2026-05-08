@@ -157,6 +157,7 @@ class Client:
         self,
         address: str,
         country: str = None,
+        lang: str = None,
     ) -> Optional[GeocodeResult]:
         """
         Geocode a single address.
@@ -164,18 +165,24 @@ class Client:
         Args:
             address: The address to geocode
             country: Limit results to a specific country (ISO 3166-1 alpha-2)
+            lang: BCP-47 tag (e.g. "de", "ja", "zh-Hant"). When set, embedded
+                admin-level names (city, state, country, district) come back
+                in the requested language. Street + house_number stay in
+                source language because Overture has no address-level
+                translation data. Sprint 2.1c.
 
         Returns:
             GeocodeResult or None if not found
 
         Example:
-            result = client.geocode("1600 Pennsylvania Ave, Washington DC")
-            if result:
-                print(f"Lat: {result.lat}, Lng: {result.lng}")
+            result = client.geocode("1010 Vienna", country="AT", lang="de")
+            # result.components.country == "Österreich"
         """
         params = {"q": address}
         if country:
             params["country"] = country
+        if lang:
+            params["lang"] = lang
 
         data = self._request("GET", "/geocode", params=params)
         response = GeocodeResponse.from_dict(data)
@@ -185,6 +192,7 @@ class Client:
         self,
         address: str,
         country: str = None,
+        lang: str = None,
     ) -> GeocodeResponse:
         """
         Geocode a single address and return full response with all results.
@@ -192,6 +200,7 @@ class Client:
         Args:
             address: The address to geocode
             country: Limit results to a specific country (ISO 3166-1 alpha-2)
+            lang: BCP-47 tag for translated admin-level names. See geocode().
 
         Returns:
             GeocodeResponse with all matching results
@@ -199,6 +208,8 @@ class Client:
         params = {"q": address}
         if country:
             params["country"] = country
+        if lang:
+            params["lang"] = lang
 
         data = self._request("GET", "/geocode", params=params)
         return GeocodeResponse.from_dict(data)
@@ -207,6 +218,7 @@ class Client:
         self,
         lat: float,
         lng: float,
+        lang: str = None,
     ) -> Optional[GeocodeResult]:
         """
         Reverse geocode coordinates to an address.
@@ -214,16 +226,18 @@ class Client:
         Args:
             lat: Latitude
             lng: Longitude
+            lang: BCP-47 tag for translated admin-level names. See geocode().
 
         Returns:
             GeocodeResult or None if not found
 
         Example:
-            result = client.reverse(38.8977, -77.0365)
-            if result:
-                print(result.formatted_address)
+            result = client.reverse(48.2082, 16.3738, lang="de")
+            # result.components.country == "Österreich"
         """
         params = {"lat": lat, "lng": lng}
+        if lang:
+            params["lang"] = lang
         data = self._request("GET", "/reverse", params=params)
         response = GeocodeResponse.from_dict(data)
         return response.best
@@ -232,6 +246,7 @@ class Client:
         self,
         lat: float,
         lng: float,
+        lang: str = None,
     ) -> GeocodeResponse:
         """
         Reverse geocode coordinates and return full response.
@@ -239,46 +254,52 @@ class Client:
         Args:
             lat: Latitude
             lng: Longitude
+            lang: BCP-47 tag for translated admin-level names.
 
         Returns:
             GeocodeResponse with all matching results
         """
         params = {"lat": lat, "lng": lng}
+        if lang:
+            params["lang"] = lang
         data = self._request("GET", "/reverse", params=params)
         return GeocodeResponse.from_dict(data)
 
     def geocode_batch(
         self,
         addresses: List[str],
+        lang: str = None,
     ) -> List[GeocodeResponse]:
         """
         Geocode multiple addresses in a single request.
 
         Args:
             addresses: List of addresses to geocode (max 10,000)
+            lang: BCP-47 tag — applied to every result in the batch.
 
         Returns:
             List of GeocodeResponse objects
 
         Example:
-            results = client.geocode_batch([
-                "1600 Pennsylvania Ave, Washington DC",
-                "350 Fifth Avenue, New York, NY",
-            ])
-            for r in results:
-                if r.best:
-                    print(f"{r.query}: {r.best.lat}, {r.best.lng}")
+            results = client.geocode_batch(
+                ["1600 Pennsylvania Ave NW, Washington DC", "Champs-Élysées Paris"],
+                lang="de",
+            )
         """
         if len(addresses) > 10000:
             raise InvalidRequestError("Maximum 10,000 addresses per batch request")
 
-        data = self._request("POST", "/geocode", json={"addresses": addresses})
+        params = {}
+        if lang:
+            params["lang"] = lang
+        data = self._request("POST", "/geocode", params=params, json={"addresses": addresses})
         response = BatchGeocodeResponse.from_dict(data)
         return response.results
 
     def reverse_batch(
         self,
         coordinates: List[Union[Tuple[float, float], Location, dict]],
+        lang: str = None,
     ) -> List[GeocodeResponse]:
         """
         Reverse geocode multiple coordinates in a single request.
@@ -316,7 +337,10 @@ class Client:
                     f"Invalid coordinate format: {type(coord)}"
                 )
 
-        data = self._request("POST", "/reverse", json={"coordinates": coords_list})
+        params = {}
+        if lang:
+            params["lang"] = lang
+        data = self._request("POST", "/reverse", params=params, json={"coordinates": coords_list})
         response = BatchGeocodeResponse.from_dict(data)
         return response.results
 
