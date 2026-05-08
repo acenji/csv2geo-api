@@ -46,19 +46,12 @@ info:
     ## Customer URL is canonical
     Every path in this spec is a path on `https://csv2geo.com/api/v1/`. The
     underlying Go service uses slightly different internal paths (e.g.
-    `/places/{id}`); customers MUST use the customer paths shown here.
+    `/places/{id}`, `/divisions/{id}`); customers MUST use the customer paths
+    shown here, which nest under `/by-id/{id}` for clarity.
 
-    ## Spec ↔ implementation gap (tracked as Sprint 2.x cleanup)
-    Some paths currently in this spec — `/validate`, `/parse`, `/standardize`,
-    `/addresses/*`, `/divisions` (search), `/divisions/contains`, `/divisions/subtypes`,
-    `/divisions/countries`, `/divisions/stats`, `/divisions/random`,
-    `/divisions/hierarchy/{id}`, `/divisions/{id}`, `/timezone`, `/distance`,
-    `/health` — exist in the Go service but are **not yet exposed by the
-    customer-facing Laravel proxy**. Calls to those return 404 from the
-    customer URL today. They remain in this spec while we close the gap;
-    do not remove them, but do not rely on them for production code paths
-    until the proxy work lands.
-  version: 1.5.1
+    Sprint A (2026-05-09) closed the previously-tracked spec ↔ implementation
+    gap: every path documented here is now reachable from the customer URL.
+  version: 1.6.0
   contact:
     name: Scale Campaign
     url: https://csv2geo.com
@@ -2244,12 +2237,16 @@ paths:
         '503':
           description: consolidated_aliases collection not configured on this cluster
 
-  /divisions/{id}:
+  /divisions/by-id/{id}:
     get:
       tags:
         - Divisions
       summary: Get division by ID
-      description: Retrieve detailed information about a specific division
+      description: |
+        Retrieve detailed information about a specific division by its
+        Overture ID. Customer URL nests under `/by-id/{id}` for consistency
+        with `/places/by-id/{id}`; the underlying Go service uses the flatter
+        `/divisions/{id}` path internally.
       operationId: getDivision
       parameters:
         - name: id

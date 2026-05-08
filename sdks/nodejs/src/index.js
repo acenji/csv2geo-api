@@ -336,16 +336,24 @@ class Client {
     return this._request('GET', '/addresses/random', params);
   }
 
-  /** Interpolate a coordinate from address-range data. GET /addresses/interpolate */
-  async addressesInterpolate(country, city, street, houseNumber) {
-    return this._request('GET', '/addresses/interpolate',
-      { country, city, street, house_number: houseNumber });
+  /** Interpolate a coordinate from address-range data. GET /addresses/interpolate
+   *  Go takes a single free-form `q` (parsed internally with libpostal) +
+   *  optional `country`. SDK 1.6.0 fixed the previous (country, city, street,
+   *  houseNumber) signature which was silently ignored by the Go service. */
+  async addressesInterpolate(query, country = 'US') {
+    return this._request('GET', '/addresses/interpolate', { q: query, country });
   }
 
-  /** Find the intersection of two streets. GET /addresses/crossstreet */
-  async addressesCrossstreet(country, city, streetA, streetB) {
-    return this._request('GET', '/addresses/crossstreet',
-      { country, city, street_a: streetA, street_b: streetB });
+  /** Find the cross-street nearest to a coordinate. GET /addresses/crossstreet
+   *  Go takes (lat, lng) and finds nearest intersecting streets. SDK 1.6.0
+   *  fixed the previous (country, city, streetA, streetB) signature — wrong
+   *  shape entirely. */
+  async addressesCrossstreet(lat, lng, options = {}) {
+    const params = { lat, lng };
+    if (options.radius)  params.radius  = options.radius;
+    if (options.country) params.country = options.country;
+    if (options.city)    params.city    = options.city;
+    return this._request('GET', '/addresses/crossstreet', params);
   }
 
   // ─────────────────────────────────────────────────────────
@@ -540,9 +548,18 @@ class Client {
     return this._request('GET', `/divisions/hierarchy/${encodeURIComponent(divisionId)}`);
   }
 
-  /** Single division by id. GET /divisions/{id} */
-  async divisionById(divisionId) {
-    return this._request('GET', `/divisions/${encodeURIComponent(divisionId)}`);
+  /** Single division by id. GET /divisions/by-id/{id} (customer URL).
+   *  Customer Laravel proxy nests this under /by-id/{id} — same naming
+   *  pattern as /places/by-id/{id} (matches the customer URL truth, not
+   *  the Go-internal flatter /divisions/{id} path). SDK 1.6.0 corrected
+   *  this; was 404'ing in 1.5.x.
+   *  options: { lang, include, precision } */
+  async divisionById(divisionId, options = {}) {
+    const params = {};
+    if (options.lang)      params.lang      = options.lang;
+    if (options.include)   params.include   = options.include;
+    if (options.precision) params.precision = options.precision;
+    return this._request('GET', `/divisions/by-id/${encodeURIComponent(divisionId)}`, params);
   }
 
   // ─────────────────────────────────────────────────────────

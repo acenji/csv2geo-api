@@ -2,6 +2,42 @@
 
 All notable changes to the Python SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to PyPI as [`csv2geo`](https://pypi.org/project/csv2geo/).
 
+## [1.6.0] — 2026-05-09 — Customer-URL gap closed + SDK signature corrections
+
+### Fixed (the customer-URL gap — Sprint A)
+- 22 SDK methods that previously 404'd from the default base URL
+  (`https://csv2geo.com/api/v1`) now resolve correctly. The Laravel
+  proxy at csv2geo.com gained matching routes for every Go service
+  endpoint: `validate` (GET+POST), `parse` (GET+POST), `standardize`,
+  `addresses_compare`, `addresses_nearby`, `addresses_street`,
+  `addresses_stats`, `addresses_random`, `addresses_interpolate`,
+  `addresses_crossstreet`, `divisions_search`, `division_contains`,
+  `divisions_subtypes`, `divisions_countries`, `divisions_stats`,
+  `divisions_random`, `division_hierarchy`, `division_by_id`,
+  `timezone`, `distance`. All smoke-tested with a real `geo_live_*`
+  key against `csv2geo.com/api/v1` per the API shipping protocol.
+- `division_by_id(id)` now calls `/divisions/by-id/{id}` (customer URL,
+  matches the same `by-id` nesting as `place_by_id`). Was calling the
+  Go-internal `/divisions/{id}` which 404'd on customer URL.
+
+### Changed (breaking — but methods were broken before, so no real impact)
+- `addresses_interpolate(query, country='US')` — corrected signature.
+  Previously took `(country, city, street, house_number)` which the Go
+  service silently ignored. Now takes a single free-form `query` (parsed
+  internally with libpostal) plus optional `country`.
+- `addresses_crossstreet(lat, lng, radius=100, country=None, city=None)`
+  — corrected signature. Previously took `(country, city, street_a,
+  street_b)` which was the wrong shape entirely. Now takes a coordinate
+  and finds the nearest cross-street.
+
+### Compatibility
+- Customers still on 1.5.x: `place_by_id` is unchanged and works.
+  Address tools and division extras start working as soon as you upgrade
+  (they didn't work before regardless of version).
+- Two breaking signature changes (`addresses_interpolate`,
+  `addresses_crossstreet`) but those methods 404'd in 1.5.x and earlier
+  so no production code depended on them.
+
 ## [1.5.1] — 2026-05-07 — Fix `place_by_id` customer URL path
 
 ### Fixed

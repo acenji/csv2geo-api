@@ -388,17 +388,28 @@ class Client:
         if country: params["country"] = country
         return self._request("GET", "/addresses/random", params=params)
 
-    def addresses_interpolate(self, country: str, city: str, street: str, house_number: str) -> dict:
-        """Interpolate a coordinate from address-range data. GET /addresses/interpolate"""
-        return self._request("GET", "/addresses/interpolate", params={
-            "country": country, "city": city, "street": street, "house_number": house_number,
-        })
+    def addresses_interpolate(self, query: str, country: str = "US") -> dict:
+        """Interpolate a coordinate from address-range data. GET /addresses/interpolate
 
-    def addresses_crossstreet(self, country: str, city: str, street_a: str, street_b: str) -> dict:
-        """Find the intersection of two streets. GET /addresses/crossstreet"""
-        return self._request("GET", "/addresses/crossstreet", params={
-            "country": country, "city": city, "street_a": street_a, "street_b": street_b,
-        })
+        The Go service takes a single free-form `q` (parsed internally with
+        libpostal) plus optional `country`. SDK 1.6.0 fixed the previous
+        signature which sent (country, city, street, house_number) — those
+        params were silently ignored by Go.
+        """
+        return self._request("GET", "/addresses/interpolate", params={"q": query, "country": country})
+
+    def addresses_crossstreet(self, lat: float, lng: float, radius: int = 100,
+                              country: str = None, city: str = None) -> dict:
+        """Find the cross-street nearest to a coordinate. GET /addresses/crossstreet
+
+        The Go service takes (lat, lng) and finds the nearest intersecting
+        streets. SDK 1.6.0 fixed the previous signature which sent
+        (country, city, street_a, street_b) — wrong shape entirely.
+        """
+        params = {"lat": lat, "lng": lng, "radius": radius}
+        if country: params["country"] = country
+        if city:    params["city"]    = city
+        return self._request("GET", "/addresses/crossstreet", params=params)
 
     # ─────────────────────────────────────────────────────────
     # Places
@@ -604,9 +615,20 @@ class Client:
         """
         return self._request("GET", f"/divisions/hierarchy/{division_id}")
 
-    def division_by_id(self, division_id: str) -> dict:
-        """Single division by id. GET /divisions/{id}"""
-        return self._request("GET", f"/divisions/{division_id}")
+    def division_by_id(self, division_id: str, lang: str = None,
+                       include: str = None, precision: str = None) -> dict:
+        """Single division by id. GET /divisions/by-id/{id} (customer URL).
+
+        Customer Laravel proxy nests this under /by-id/{id} — same naming
+        pattern as /places/by-id/{id} (matches the customer URL truth, not
+        the Go-internal flatter /divisions/{id} path). SDK 1.6.0 corrected
+        this; was 404'ing in 1.5.x.
+        """
+        params = {}
+        if lang:      params["lang"] = lang
+        if include:   params["include"] = include
+        if precision: params["precision"] = precision
+        return self._request("GET", f"/divisions/by-id/{division_id}", params=params)
 
     # ─────────────────────────────────────────────────────────
     # Boundaries (Sprint 1.8 — ancestors / children / consolidated)
