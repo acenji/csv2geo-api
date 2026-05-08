@@ -159,7 +159,7 @@ class Client {
   async geocode(address, options = {}) {
     const params = { q: address };
     if (options.country) params.country = options.country;
-    if (options.lang) params.lang = options.lang;  // Sprint 2.1c
+    this._mergeI18n(params, options);  // lang / include / includeOtherNames
 
     const data = await this._request('GET', '/geocode', params);
     const results = data.results || [];
@@ -169,13 +169,13 @@ class Client {
   /**
    * Geocode with full response
    * @param {string} address - The address to geocode
-   * @param {Object} [options] - Options { country, lang }
+   * @param {Object} [options] - Options { country, lang, include, includeOtherNames }
    * @returns {Promise<GeocodeResponse>} Full response with all results
    */
   async geocodeFull(address, options = {}) {
     const params = { q: address };
     if (options.country) params.country = options.country;
-    if (options.lang) params.lang = options.lang;  // Sprint 2.1c
+    this._mergeI18n(params, options);
 
     const data = await this._request('GET', '/geocode', params);
     return {
@@ -188,16 +188,17 @@ class Client {
    * Reverse geocode coordinates
    * @param {number} lat - Latitude
    * @param {number} lng - Longitude
-   * @param {Object} [options] - Options { lang } (Sprint 2.1c)
+   * @param {Object} [options] - Options { lang, include, includeOtherNames }
    * @returns {Promise<GeocodeResult|null>} Best result or null if not found
    *
    * @example
-   * const result = await client.reverse(48.2082, 16.3738, { lang: 'de' });
+   * const result = await client.reverse(48.2082, 16.3738, { lang: 'de', includeOtherNames: true });
    * // result.components.country === 'Österreich'
+   * // result.other_names.country.fr === 'Autriche'
    */
   async reverse(lat, lng, options = {}) {
     const params = { lat, lng };
-    if (options.lang) params.lang = options.lang;
+    this._mergeI18n(params, options);
     const data = await this._request('GET', '/reverse', params);
     const results = data.results || [];
     return results.length > 0 ? this._parseResult(results[0]) : null;
@@ -207,12 +208,12 @@ class Client {
    * Reverse geocode with full response
    * @param {number} lat - Latitude
    * @param {number} lng - Longitude
-   * @param {Object} [options] - Options { lang }
+   * @param {Object} [options] - Options { lang, include, includeOtherNames }
    * @returns {Promise<GeocodeResponse>} Full response with all results
    */
   async reverseFull(lat, lng, options = {}) {
     const params = { lat, lng };
-    if (options.lang) params.lang = options.lang;
+    this._mergeI18n(params, options);
     const data = await this._request('GET', '/reverse', params);
     return {
       query: data.query,
@@ -223,13 +224,13 @@ class Client {
   /**
    * Batch geocode multiple addresses
    * @param {string[]} addresses - Array of addresses (max 10,000)
-   * @param {Object} [options] - Options { lang } (Sprint 2.1c)
+   * @param {Object} [options] - Options { lang, include, includeOtherNames }
    * @returns {Promise<GeocodeResponse[]>} Array of responses
    *
    * @example
    * const results = await client.geocodeBatch(
    *   ['1600 Pennsylvania Ave NW Washington DC', 'Champs-Élysées Paris'],
-   *   { lang: 'de' }
+   *   { lang: 'de', includeOtherNames: true }
    * );
    */
   async geocodeBatch(addresses, options = {}) {
@@ -238,7 +239,7 @@ class Client {
     }
 
     const params = {};
-    if (options.lang) params.lang = options.lang;
+    this._mergeI18n(params, options);
     const data = await this._request('POST', '/geocode', params, { addresses });
     return (data.results || []).map(r => ({
       query: r.query,
@@ -263,12 +264,25 @@ class Client {
     }
 
     const params = {};
-    if (options.lang) params.lang = options.lang;  // Sprint 2.1c
+    this._mergeI18n(params, options);
     const data = await this._request('POST', '/reverse', params, { coordinates });
     return (data.results || []).map(r => ({
       query: r.query,
       results: (r.results || []).map(res => this._parseResult(res)),
     }));
+  }
+
+  /**
+   * Internal: merge ?lang= / ?include= / ?include=other_names from options
+   * into a params object. Called by every geocode/reverse method.
+   */
+  _mergeI18n(params, options) {
+    if (options.lang) params.lang = options.lang;
+    if (options.include) {
+      params.include = options.include;
+    } else if (options.includeOtherNames) {
+      params.include = 'other_names';
+    }
   }
 
   // ─────────────────────────────────────────────────────────
@@ -698,6 +712,9 @@ class Client {
         postcode: data.components?.postcode,
         country: data.components?.country,
       },
+      // Sprint 2.1d — pass-through per-admin-level translation maps when
+      // ?include=other_names. Empty object if not requested.
+      other_names: data.other_names || {},
     };
   }
 
