@@ -24,7 +24,7 @@ All notable changes to the Python SDK are documented here. Format follows [Keep 
 - `addresses_interpolate(query, country='US')` — corrected signature.
   Previously took `(country, city, street, house_number)` which the Go
   service silently ignored. Now takes a single free-form `query` (parsed
-  internally with libpostal) plus optional `country`.
+  internally) plus optional `country`.
 - `addresses_crossstreet(lat, lng, radius=100, country=None, city=None)`
   — corrected signature. Previously took `(country, city, street_a,
   street_b)` which was the wrong shape entirely. Now takes a coordinate

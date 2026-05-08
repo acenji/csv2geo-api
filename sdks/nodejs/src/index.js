@@ -362,7 +362,7 @@ class Client {
   }
 
   /** Interpolate a coordinate from address-range data. GET /addresses/interpolate
-   *  Go takes a single free-form `q` (parsed internally with libpostal) +
+   *  Go takes a single free-form `q` (parsed internally) +
    *  optional `country`. SDK 1.6.0 fixed the previous (country, city, street,
    *  houseNumber) signature which was silently ignored by the Go service. */
   async addressesInterpolate(query, country = 'US') {

@@ -435,8 +435,8 @@ class Client:
     def addresses_interpolate(self, query: str, country: str = "US") -> dict:
         """Interpolate a coordinate from address-range data. GET /addresses/interpolate
 
-        The Go service takes a single free-form `q` (parsed internally with
-        libpostal) plus optional `country`. SDK 1.6.0 fixed the previous
+        The Go service takes a single free-form `q` (parsed internally)
+        plus optional `country`. SDK 1.6.0 fixed the previous
         signature which sent (country, city, street, house_number) — those
         params were silently ignored by Go.
         """
