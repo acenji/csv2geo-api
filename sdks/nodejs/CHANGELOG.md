@@ -2,6 +2,15 @@
 
 All notable changes to the Node SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to npm as [`csv2geo-sdk`](https://www.npmjs.com/package/csv2geo-sdk).
 
+## [1.5.0] — 2026-05-07 — Multi-language place names
+
+### Added
+- `lang` option on all places methods that emit a `PlaceResult` — `places`, `placesNearby`, `placesRandom`, `placesChain`, `placesSimilar`, `placesBatch`, and `placeById`. Same BCP-47 semantics as 1.4.0 divisions: `{lang: 'ja'}` swaps `name` for the Overture `names.rules` translation when present (e.g. `CoCo Ichibanya` → `CoCo壱番屋`, `Shell` → `شل`), with base-language fallback.
+- `includeOtherNames: true` option (or `include: 'other_names'`) attaches the full translation map under `other_names` on each returned place. 234,440 places across 17 languages have a translation map today (sourced from Overture `names.rules`).
+
+### Compatibility
+- Pure additive — all 1.4.0 callers work unchanged.
+
 ## [1.4.0] — 2026-05-07 — Multi-language division names
 
 ### Added

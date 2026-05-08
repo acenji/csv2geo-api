@@ -405,32 +405,48 @@ class Client:
     # ─────────────────────────────────────────────────────────
 
     def places(self, query: str = None, country: str = None, category: str = None,
-               limit: int = None) -> dict:
-        """Search places (POIs) by name / category. GET /places"""
+               limit: int = None, lang: str = None, include_other_names: bool = False,
+               include: str = None) -> dict:
+        """Search places (POIs) by name / category. GET /places
+
+        Args:
+            lang: BCP-47 tag (e.g. 'ja', 'de', 'pt-BR') — swaps `name` for the
+                Overture translation when available (Sprint 2.1b).
+            include_other_names: attach the full translation map under
+                `other_names` on each result.
+            include: comma list — e.g. 'other_names'. Overrides include_other_names.
+        """
         params = {}
         if query:    params["q"] = query
         if country:  params["country"] = country
         if category: params["category"] = category
         if limit:    params["limit"] = limit
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places", params=params)
 
     def places_nearby(self, lat: float, lng: float, radius_m: int = 200,
-                      category: str = None, limit: int = None) -> dict:
+                      category: str = None, limit: int = None,
+                      lang: str = None, include_other_names: bool = False,
+                      include: str = None) -> dict:
         """Places within radius of a coordinate. GET /places/nearby"""
         params = {"lat": lat, "lng": lng, "radius": radius_m}
         if category: params["category"] = category
         if limit:    params["limit"] = limit
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places/nearby", params=params)
 
     def places_categories(self) -> dict:
         """List all place categories. GET /places/categories"""
         return self._request("GET", "/places/categories")
 
-    def places_random(self, country: str = None, category: str = None, limit: int = 1) -> dict:
+    def places_random(self, country: str = None, category: str = None, limit: int = 1,
+                      lang: str = None, include_other_names: bool = False,
+                      include: str = None) -> dict:
         """Random places. GET /places/random"""
         params = {"limit": limit}
         if country:  params["country"] = country
         if category: params["category"] = category
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places/random", params=params)
 
     def places_stats(self, country: str = None) -> dict:
@@ -445,10 +461,13 @@ class Client:
         if country: params["country"] = country
         return self._request("GET", "/places/brands", params=params)
 
-    def places_chain(self, brand: str, country: str = None) -> dict:
+    def places_chain(self, brand: str, country: str = None,
+                     lang: str = None, include_other_names: bool = False,
+                     include: str = None) -> dict:
         """All locations of a brand/chain. GET /places/chain"""
         params = {"brand": brand}
         if country: params["country"] = country
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places/chain", params=params)
 
     def places_count(self, country: str = None, category: str = None) -> dict:
@@ -458,14 +477,19 @@ class Client:
         if category: params["category"] = category
         return self._request("GET", "/places/count", params=params)
 
-    def places_similar(self, place_id: str, limit: int = None) -> dict:
+    def places_similar(self, place_id: str, limit: int = None,
+                       lang: str = None, include_other_names: bool = False,
+                       include: str = None) -> dict:
         """Places similar to a given one. GET /places/similar"""
         params = {"id": place_id}
         if limit: params["limit"] = limit
+        self._merge_places_i18n(params, lang, include_other_names, include)
         return self._request("GET", "/places/similar", params=params)
 
     def places_batch(self, coordinates: List[Union[Tuple[float, float], dict]],
-                     radius_m: int = 200, category: str = None) -> dict:
+                     radius_m: int = 200, category: str = None,
+                     lang: str = None, include_other_names: bool = False,
+                     include: str = None) -> dict:
         """Batch nearby-places lookup. POST /places/batch"""
         if len(coordinates) > 10000:
             raise InvalidRequestError("Max 10,000 per batch")
@@ -475,11 +499,26 @@ class Client:
         ]
         body = {"coordinates": coords, "radius": radius_m}
         if category: body["category"] = category
-        return self._request("POST", "/places/batch", json=body)
+        # lang / include go on the query string (not body) per Go handler contract
+        params = {}
+        self._merge_places_i18n(params, lang, include_other_names, include)
+        return self._request("POST", "/places/batch", params=params, json=body)
 
-    def place_by_id(self, place_id: str) -> dict:
+    def place_by_id(self, place_id: str, lang: str = None,
+                    include_other_names: bool = False, include: str = None) -> dict:
         """Single place by id. GET /places/{id}"""
-        return self._request("GET", f"/places/{place_id}")
+        params = {}
+        self._merge_places_i18n(params, lang, include_other_names, include)
+        return self._request("GET", f"/places/{place_id}", params=params)
+
+    def _merge_places_i18n(self, params: dict, lang, include_other_names, include) -> None:
+        """Internal: attach Sprint 2.1b lang / include params to a places request."""
+        if lang:
+            params["lang"] = lang
+        if include:
+            params["include"] = include
+        elif include_other_names:
+            params["include"] = "other_names"
 
     # ─────────────────────────────────────────────────────────
     # Divisions (Sprint 1 — postcode boundary)

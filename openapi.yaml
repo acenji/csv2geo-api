@@ -1037,6 +1037,21 @@ paths:
             minimum: 1
             maximum: 50
             default: 10
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available, falling back to base language then
+            primary (Sprint 2.1b — 234K places across 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. Currently `other_names` — attaches the full
+            translations map under `other_names` on each result.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Successful search response
@@ -1118,6 +1133,19 @@ paths:
             minimum: 1
             maximum: 50
             default: 10
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Successful nearby search response
@@ -1503,6 +1531,19 @@ paths:
           schema:
             type: string
           example: "08f28a8f-8c8b-4896-815e-c92c8df0a8a6"
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Place details
@@ -2564,6 +2605,19 @@ components:
           nullable: true
           description: Operating status (e.g., "open", "closed_permanently")
           example: "open"
+        other_names:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string
+          description: |
+            Multi-language translation map. Present when `?include=other_names`
+            is passed AND the place has language-tagged variants in Overture
+            `names.rules`. Sourced from Overture; 234K places have a translation
+            map across 17 languages today (Sprint 2.1b).
+          example:
+            en: "CoCo Ichibanya"
+            ja: "CoCo壱番屋"
 
     PlacesSearchResponse:
       type: object

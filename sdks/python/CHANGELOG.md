@@ -2,6 +2,18 @@
 
 All notable changes to the Python SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to PyPI as [`csv2geo`](https://pypi.org/project/csv2geo/).
 
+## [1.5.0] — 2026-05-07 — Multi-language place names
+
+### Added
+- `lang=` keyword argument on all places methods that emit a `PlaceResult` — `places`, `places_nearby`, `places_random`, `places_chain`, `places_similar`, `places_batch`, and `place_by_id`. Same BCP-47 semantics as 1.4.0 divisions: `lang="ja"` swaps `name` for the Overture `names.rules` translation when present (e.g. `CoCo Ichibanya` → `CoCo壱番屋`, `Shell` → `شل`), with base-language fallback.
+- `include_other_names=True` keyword (or `include="other_names"`) attaches the full translation map under `other_names` on each returned place. 234,440 places across 17 languages have a translation map today (sourced from Overture `names.rules`).
+
+### Changed
+- `User-Agent` header bumped to `csv2geo-python/1.5.0`.
+
+### Compatibility
+- Pure additive — all 1.4.0 callers work unchanged.
+
 ## [1.4.0] — 2026-05-07 — Multi-language division names
 
 ### Added

@@ -352,21 +352,25 @@ class Client {
   // Places
   // ─────────────────────────────────────────────────────────
 
-  /** Search places (POIs). GET /places */
+  /** Search places (POIs). GET /places
+   *  options: { q, country, category, limit, lang, includeOtherNames, include } */
   async places(options = {}) {
     const params = {};
     if (options.q || options.query) params.q = options.q || options.query;
     if (options.country)            params.country = options.country;
     if (options.category)           params.category = options.category;
     if (options.limit)              params.limit = options.limit;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places', params);
   }
 
-  /** Places within radius of a coordinate. GET /places/nearby */
+  /** Places within radius of a coordinate. GET /places/nearby
+   *  options: { radius, category, limit, lang, includeOtherNames, include } */
   async placesNearby(lat, lng, options = {}) {
     const params = { lat, lng, radius: options.radius || 200 };
     if (options.category) params.category = options.category;
     if (options.limit)    params.limit = options.limit;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places/nearby', params);
   }
 
@@ -375,11 +379,13 @@ class Client {
     return this._request('GET', '/places/categories');
   }
 
-  /** Random places. GET /places/random */
+  /** Random places. GET /places/random
+   *  options: { country, category, limit, lang, includeOtherNames, include } */
   async placesRandom(options = {}) {
     const params = { limit: options.limit || 1 };
     if (options.country)  params.country = options.country;
     if (options.category) params.category = options.category;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places/random', params);
   }
 
@@ -397,10 +403,12 @@ class Client {
     return this._request('GET', '/places/brands', params);
   }
 
-  /** All locations of a brand/chain. GET /places/chain */
-  async placesChain(brand, country) {
+  /** All locations of a brand/chain. GET /places/chain
+   *  options: { country, lang, includeOtherNames, include } */
+  async placesChain(brand, country, options = {}) {
     const params = { brand };
     if (country) params.country = country;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places/chain', params);
   }
 
@@ -412,24 +420,44 @@ class Client {
     return this._request('GET', '/places/count', params);
   }
 
-  /** Places similar to a given one. GET /places/similar */
+  /** Places similar to a given one. GET /places/similar
+   *  options: { limit, lang, includeOtherNames, include } */
   async placesSimilar(placeId, options = {}) {
     const params = { id: placeId };
     if (options.limit) params.limit = options.limit;
+    this._mergePlacesI18n(params, options);
     return this._request('GET', '/places/similar', params);
   }
 
-  /** Batch nearby-places lookup. POST /places/batch */
+  /** Batch nearby-places lookup. POST /places/batch
+   *  options: { radius, category, lang, includeOtherNames, include } */
   async placesBatch(coordinates, options = {}) {
     if (coordinates.length > 10000) throw new InvalidRequestError('Max 10,000 per batch');
     const body = { coordinates, radius: options.radius || 200 };
     if (options.category) body.category = options.category;
-    return this._request('POST', '/places/batch', {}, body);
+    // lang / include are forwarded via query string (not body)
+    const queryParams = {};
+    this._mergePlacesI18n(queryParams, options);
+    return this._request('POST', '/places/batch', queryParams, body);
   }
 
-  /** Single place by id. GET /places/{id} */
-  async placeById(placeId) {
-    return this._request('GET', `/places/${encodeURIComponent(placeId)}`);
+  /** Single place by id. GET /places/{id}
+   *  options: { lang, includeOtherNames, include } */
+  async placeById(placeId, options = {}) {
+    const params = {};
+    this._mergePlacesI18n(params, options);
+    return this._request('GET', `/places/${encodeURIComponent(placeId)}`, params);
+  }
+
+  /** Internal: merge ?lang= and ?include=other_names options into params.
+   *  Sprint 2.1b — translations on places (234K places, 17 langs from Overture). */
+  _mergePlacesI18n(params, options) {
+    if (options.lang) params.lang = options.lang;
+    if (options.include) {
+      params.include = options.include;
+    } else if (options.includeOtherNames) {
+      params.include = 'other_names';
+    }
   }
 
   // ─────────────────────────────────────────────────────────
