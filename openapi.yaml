@@ -42,7 +42,23 @@ info:
     | Starter | 1,000 | 1,000 |
     | Growth | 5,000 | 5,000 |
     | Pro | 10,000 | 10,000 |
-  version: 1.0.0
+
+    ## Customer URL is canonical
+    Every path in this spec is a path on `https://csv2geo.com/api/v1/`. The
+    underlying Go service uses slightly different internal paths (e.g.
+    `/places/{id}`); customers MUST use the customer paths shown here.
+
+    ## Spec ↔ implementation gap (tracked as Sprint 2.x cleanup)
+    Some paths currently in this spec — `/validate`, `/parse`, `/standardize`,
+    `/addresses/*`, `/divisions` (search), `/divisions/contains`, `/divisions/subtypes`,
+    `/divisions/countries`, `/divisions/stats`, `/divisions/random`,
+    `/divisions/hierarchy/{id}`, `/divisions/{id}`, `/timezone`, `/distance`,
+    `/health` — exist in the Go service but are **not yet exposed by the
+    customer-facing Laravel proxy**. Calls to those return 404 from the
+    customer URL today. They remain in this spec while we close the gap;
+    do not remove them, but do not rely on them for production code paths
+    until the proxy work lands.
+  version: 1.5.1
   contact:
     name: Scale Campaign
     url: https://csv2geo.com
@@ -72,6 +88,8 @@ tags:
     description: Search 72M+ POIs - businesses, landmarks, restaurants, and more
   - name: Divisions
     description: 4.6M+ administrative boundaries - cities, counties, neighborhoods, states
+  - name: Coverage
+    description: Per-country and aggregate dataset coverage statistics
   - name: Utilities
     description: Timezone lookup, distance calculations, and system health
 
@@ -1570,12 +1588,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /places/{id}:
+  /places/by-id/{id}:
     get:
       tags:
         - Places
       summary: Get place by ID
-      description: Retrieve detailed information about a specific place
+      description: |
+        Retrieve detailed information about a specific place by its Overture ID.
+
+        **Customer URL path is `/places/by-id/{id}`** (the underlying Go service
+        uses `/places/{id}` internally; the Laravel proxy nests under `/by-id/`
+        for clarity in the URL hierarchy).
       operationId: getPlace
       parameters:
         - name: id
@@ -1679,6 +1702,166 @@ paths:
                   status: 400
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /divisions/by-postcode:
+    get:
+      tags:
+        - Divisions
+      summary: Postcode → boundary (one-call)
+      description: |
+        Resolve a postcode + country code to its administrative division: bbox,
+        polygon, population, Wikidata ID, parent admin chain — all in one
+        nested response. The flagship one-call boundaries endpoint shipped in
+        Sprint 1.
+
+        Most other boundary APIs require two calls (geocode for an opaque
+        place_id, then a separate fetch for the polygon). This endpoint gives
+        you everything in a single billed request.
+      operationId: divisionByPostcode
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: Postcode / postal code. Country-aware normalization
+            handles formats like "SW1A 1AA" (UK), "100-0001" (JP), "75001" (FR).
+          schema: { type: string, example: "90210" }
+        - name: country
+          in: query
+          required: true
+          description: ISO 3166-1 alpha-2 country code.
+          schema: { type: string, example: "US" }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `geometry` adds the polygon at the requested precision;
+            `other_names` attaches the full translations map (Sprint 2.1).
+          schema: { type: string, example: "geometry,other_names" }
+        - name: precision
+          in: query
+          required: false
+          description: Polygon detail tier when include=geometry.
+          schema: { type: string, enum: [low, med, full], default: med }
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces the division `name` with the
+            Overture translation when available. Falls back to base language
+            then to primary.
+          schema: { type: string, example: de }
+      responses:
+        '200':
+          description: Division resolved (with optional geometry + translations)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: object
+                    properties:
+                      postcode: { type: string }
+                      country:  { type: string }
+                  result:
+                    $ref: '#/components/schemas/DivisionResult'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+        '400':
+          description: Missing required parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Postcode not found in the requested country
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coverage:
+    get:
+      tags:
+        - Coverage
+      summary: Per-country boundary coverage
+      description: |
+        Returns boundary tier (A/B), division count, and polygon count
+        per country. Useful for showing which countries are deep-coverage
+        (Tier A — addresses + boundaries) vs boundary-only (Tier B).
+      operationId: coverage
+      responses:
+        '200':
+          description: Per-country boundary coverage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  countries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code:      { type: string, description: ISO 3166-1 alpha-2 }
+                        tier:      { type: string, enum: [A, B], description: A = addresses + boundaries; B = boundaries only }
+                        divisions: { type: integer }
+                        polygons:  { type: integer }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /coverage-stats:
+    get:
+      tags:
+        - Coverage
+      summary: Aggregate dataset stats
+      description: |
+        Returns top-level totals (addresses, places, countries) across the
+        entire dataset, plus a per-country breakdown ordered by address count.
+        Powers the homepage stats. No API key required (public endpoint).
+      operationId: coverageStats
+      security: []   # Public endpoint — no API key required
+      responses:
+        '200':
+          description: Aggregate stats + per-country breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:         { type: boolean, example: true }
+                  total_addresses: { type: integer, example: 460734720 }
+                  total_places:    { type: integer, example: 46318120 }
+                  total_countries: { type: integer, example: 39 }
+                  countries:
+                    type: array
+                    description: Per-country breakdown, ordered by address count
+                    items:
+                      type: object
+                      properties:
+                        country:   { type: string, example: "United States" }
+                        code:      { type: string, example: "US", description: ISO 3166-1 alpha-2 }
+                        addresses: { type: integer, example: 121533307 }
+                        formatted: { type: string, example: "121M" }
+                        places:    { type: integer, example: 15521986 }
+                        lat:       { type: number }
+                        lng:       { type: number }
+        '429':
+          description: Anonymous rate limit exceeded
           content:
             application/json:
               schema:
