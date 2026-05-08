@@ -51,7 +51,7 @@ info:
 
     Sprint A (2026-05-09) closed the previously-tracked spec ↔ implementation
     gap: every path documented here is now reachable from the customer URL.
-  version: 1.7.3
+  version: 1.7.4
   contact:
     name: Scale Campaign
     url: https://csv2geo.com
@@ -1080,6 +1080,18 @@ paths:
             type: string
             default: "US"
           example: "US"
+        - name: filter
+          in: query
+          required: false
+          description: |
+            Geoapify-shape geographic filter. Accepts:
+              * `rect:lon1,lat1,lon2,lat2` — bounding box (any 2 opposite corners)
+              * `circle:lon,lat,radius_m` — radius in meters around a point
+            When `filter` is set, neither `country` nor `city` is required.
+            Sprint 2.2c.
+          schema:
+            type: string
+          example: "circle:-73.9857,40.7580,500"
         - name: limit
           in: query
           required: false
