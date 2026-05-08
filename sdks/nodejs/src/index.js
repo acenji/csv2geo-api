@@ -441,12 +441,16 @@ class Client {
     return this._request('POST', '/places/batch', queryParams, body);
   }
 
-  /** Single place by id. GET /places/{id}
+  /** Single place by id. GET /places/by-id/{id} (customer URL).
+   *  The customer-facing Laravel proxy nests this under /places/by-id/{id}
+   *  even though the underlying Go service uses /places/{id} — SDK MUST
+   *  target the customer path. (Bug fix 1.5.1; was broken in 1.5.0 and
+   *  earlier.)
    *  options: { lang, includeOtherNames, include } */
   async placeById(placeId, options = {}) {
     const params = {};
     this._mergePlacesI18n(params, options);
-    return this._request('GET', `/places/${encodeURIComponent(placeId)}`, params);
+    return this._request('GET', `/places/by-id/${encodeURIComponent(placeId)}`, params);
   }
 
   /** Internal: merge ?lang= and ?include=other_names options into params.

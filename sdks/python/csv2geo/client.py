@@ -506,10 +506,16 @@ class Client:
 
     def place_by_id(self, place_id: str, lang: str = None,
                     include_other_names: bool = False, include: str = None) -> dict:
-        """Single place by id. GET /places/{id}"""
+        """Single place by id. GET /places/by-id/{id} (customer URL).
+
+        The customer-facing Laravel proxy nests this under `/places/by-id/{id}`
+        even though the underlying Go service uses `/places/{id}` — SDK MUST
+        target the customer path. (Bug fix 1.5.1; was broken in 1.5.0 and
+        earlier.)
+        """
         params = {}
         self._merge_places_i18n(params, lang, include_other_names, include)
-        return self._request("GET", f"/places/{place_id}", params=params)
+        return self._request("GET", f"/places/by-id/{place_id}", params=params)
 
     def _merge_places_i18n(self, params: dict, lang, include_other_names, include) -> None:
         """Internal: attach Sprint 2.1b lang / include params to a places request."""

@@ -2,6 +2,15 @@
 
 All notable changes to the Node SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to npm as [`csv2geo-sdk`](https://www.npmjs.com/package/csv2geo-sdk).
 
+## [1.5.1] — 2026-05-07 — Fix `placeById` customer URL path
+
+### Fixed
+- `placeById(placeId)` was calling `/places/{id}` (the Go service path) but the customer-facing Laravel proxy at `csv2geo.com/api/v1` nests this under `/places/by-id/{id}`. Returns now go through `/places/by-id/{id}` and resolve correctly. Pre-existing bug — present in 1.5.0 and earlier; affects every install that called `placeById` against the default base URL.
+- Smoke-tested against `https://csv2geo.com/api/v1/places/by-id/{id}` with a real `geo_live_*` key before publish per the [API shipping protocol](https://github.com/csv2geo/overture-geocoder/blob/main/docs/API-SHIPPING-PROTOCOL.md).
+
+### Compatibility
+- Pure bug fix. No method signature change. All 1.5.0 callers benefit immediately.
+
 ## [1.5.0] — 2026-05-07 — Multi-language place names
 
 ### Added
