@@ -51,7 +51,7 @@ info:
 
     Sprint A (2026-05-09) closed the previously-tracked spec ↔ implementation
     gap: every path documented here is now reachable from the customer URL.
-  version: 1.7.1
+  version: 1.7.3
   contact:
     name: Scale Campaign
     url: https://csv2geo.com
@@ -1058,10 +1058,20 @@ paths:
         - name: category
           in: query
           required: false
-          description: Filter by category (e.g., "coffee_shop", "restaurant")
+          description: |
+            Filter by category. Sprint 2.2a — accepts BOTH:
+              * Leaf code (legacy): `coffee_shop`, `sushi_restaurant`, `restaurant`
+              * Hierarchical dot path: `eat_and_drink`, `eat_and_drink.restaurant`,
+                `eat_and_drink.restaurant.asian_restaurant.sushi_restaurant`
+            When the value matches a non-leaf taxonomy node, the filter expands
+            to all descendants. So `category=eat_and_drink.restaurant` returns
+            ALL restaurants regardless of cuisine; `category=eat_and_drink`
+            returns all food/drink venues. Source: Overture taxonomy
+            (2,118 categories, 22 top-level groups, 1-4 depth levels).
+            See `/v1/places/categories?include=taxonomy` for the full tree.
           schema:
             type: string
-          example: "coffee_shop"
+          example: "eat_and_drink.restaurant"
         - name: country
           in: query
           required: false
