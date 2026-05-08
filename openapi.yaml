@@ -1241,6 +1241,19 @@ paths:
             minimum: 1
             maximum: 100
             default: 10
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Random places
@@ -1360,6 +1373,19 @@ paths:
             minimum: 1
             maximum: 1000
             default: 100
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Chain locations
@@ -1463,6 +1489,19 @@ paths:
             minimum: 1
             maximum: 50
             default: 10
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       responses:
         '200':
           description: Similar places
@@ -1490,6 +1529,21 @@ paths:
       summary: Batch lookup places by ID
       description: Retrieve multiple places by their IDs in a single request
       operationId: batchPlaces
+      parameters:
+        - name: lang
+          in: query
+          required: false
+          description: |
+            BCP-47 language tag — replaces each `name` with the Overture
+            translation when available (Sprint 2.1b — 234K places, 17 langs).
+            Forwarded as a query param even on this POST endpoint.
+          schema: { type: string, example: ja }
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma list. `other_names` attaches the full translations map.
+          schema: { type: string, example: "other_names" }
       requestBody:
         required: true
         content:
