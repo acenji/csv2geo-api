@@ -83,6 +83,10 @@ tags:
     description: 4.6M+ administrative boundaries - cities, counties, neighborhoods, states
   - name: Coverage
     description: Per-country and aggregate dataset coverage statistics
+  - name: Routing
+    description: Valhalla-backed routing — turn-by-turn directions, isolines, matrices, map-matching, TSP optimization, snap-to-road, elevation. 5 transport modes (drive, walk, bike, truck, motorcycle). Pro plan and above.
+  - name: IP Geolocation
+    description: Submillisecond MaxMind GeoLite2 IP → city/region/county/ASN lookup. Bundled into every plan, including Free.
   - name: Utilities
     description: Timezone lookup, distance calculations, and system health
 
@@ -2558,6 +2562,545 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  # ── Routing (Sprint 2.4) ────────────────────────────────────────────────
+  # All routing endpoints share a common authentication and response envelope.
+  # Powered by a self-hosted Valhalla engine over the global OSM network.
+  # Available on the Pro plan and above; routing calls count 1:1 against the
+  # standard daily quota.
+  /routing:
+    get:
+      tags:
+        - Routing
+      summary: Turn-by-turn route through 2+ waypoints
+      description: |
+        Compute a route through two or more waypoints and return the polyline,
+        distance, duration, per-leg breakdown, and (optionally) turn-by-turn
+        maneuvers. Supports up to 2 alternate routes per request.
+
+        **Modes**: `drive`, `walk`, `bike`, `truck`, `motorcycle`.
+        Truck mode additionally accepts `truck_height`, `truck_weight`,
+        `truck_length`, `truck_width`, `truck_hazmat` so the engine avoids
+        bridges, tunnels and roads that violate any constraint.
+
+        **Time-aware**: pass `depart_at=YYYY-MM-DDTHH:MM:SSZ` (or `arrive_at`)
+        to factor historical traffic into the estimated duration.
+      operationId: route
+      parameters:
+        - name: waypoints
+          in: query
+          required: true
+          description: |
+            Pipe-delimited list of `lat,lng` pairs in visit order. Minimum 2,
+            maximum 50 per request.
+          schema:
+            type: string
+          example: "40.7128,-74.0060|34.0522,-118.2437"
+        - name: mode
+          in: query
+          required: true
+          description: Transport profile
+          schema:
+            type: string
+            enum: [drive, walk, bike, truck, motorcycle]
+            default: drive
+        - name: units
+          in: query
+          required: false
+          description: Output unit for distance fields
+          schema:
+            type: string
+            enum: [km, mi]
+            default: km
+        - name: alternatives
+          in: query
+          required: false
+          description: Number of alternate routes to compute (0-2)
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 2
+            default: 0
+        - name: instructions
+          in: query
+          required: false
+          description: Include turn-by-turn maneuvers in the response
+          schema:
+            type: boolean
+            default: false
+        - name: lang
+          in: query
+          required: false
+          description: BCP-47 language code for turn-by-turn instructions (e.g. `en`, `de`, `es`, `fr`, `it`, `ja`)
+          schema:
+            type: string
+            default: en
+        - name: avoid
+          in: query
+          required: false
+          description: |
+            Comma-separated list of road features to avoid.
+            Accepts `tolls`, `highways`, `ferries`, `tunnels`, `borders`.
+          schema:
+            type: string
+          example: "tolls,ferries"
+        - name: depart_at
+          in: query
+          required: false
+          description: ISO-8601 departure time for time-aware routing
+          schema:
+            type: string
+            format: date-time
+          example: "2026-05-15T08:30:00Z"
+        - name: arrive_at
+          in: query
+          required: false
+          description: ISO-8601 arrival time (alternative to `depart_at`)
+          schema:
+            type: string
+            format: date-time
+        - name: truck_height
+          in: query
+          required: false
+          description: Vehicle height in meters (truck mode only)
+          schema:
+            type: number
+            format: double
+          example: 4.2
+        - name: truck_weight
+          in: query
+          required: false
+          description: Vehicle weight in kilograms (truck mode only)
+          schema:
+            type: number
+            format: double
+          example: 22000
+        - name: truck_length
+          in: query
+          required: false
+          description: Vehicle length in meters (truck mode only)
+          schema:
+            type: number
+            format: double
+        - name: truck_width
+          in: query
+          required: false
+          description: Vehicle width in meters (truck mode only)
+          schema:
+            type: number
+            format: double
+        - name: truck_hazmat
+          in: query
+          required: false
+          description: Vehicle is carrying hazardous materials (truck mode only)
+          schema:
+            type: boolean
+            default: false
+        - name: format
+          in: query
+          required: false
+          description: |
+            Output geometry encoding. `geojson` (default) returns a LineString;
+            `polyline` returns an encoded polyline-6 string.
+          schema:
+            type: string
+            enum: [geojson, polyline]
+            default: geojson
+      responses:
+        '200':
+          description: Route computed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutingResponse'
+        '400':
+          description: Invalid request (missing/malformed waypoints, unsupported mode, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Plan does not include routing (upgrade to Pro)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /isoline:
+    get:
+      tags:
+        - Routing
+      summary: Reachable-area isoline (isochrone)
+      description: |
+        Return the polygon of everywhere reachable from a single point within
+        a given time budget (or distance). Up to 3 ranges per call render
+        layered drive-time / walk-time rings in one response.
+      operationId: isoline
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          example: 40.7128
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          example: -74.0060
+        - name: mode
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [drive, walk, bike, truck, motorcycle]
+        - name: ranges
+          in: query
+          required: true
+          description: |
+            Comma-separated list of range values. Up to 3 entries.
+            Units are seconds when `type=time` (default), meters when
+            `type=distance`.
+          schema:
+            type: string
+          example: "300,600,900"
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [time, distance]
+            default: time
+        - name: denoise
+          in: query
+          required: false
+          description: Smoothing factor (0-1). Higher values yield simpler polygons.
+          schema:
+            type: number
+            minimum: 0
+            maximum: 1
+            default: 0.5
+        - name: generalize
+          in: query
+          required: false
+          description: Douglas-Peucker simplification tolerance in meters
+          schema:
+            type: number
+            minimum: 0
+      responses:
+        '200':
+          description: Isoline polygons
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IsolineResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Plan does not include routing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /route-matrix:
+    post:
+      tags:
+        - Routing
+      summary: Many-to-many distance + duration matrix
+      description: |
+        Compute distance and duration between every source and every target.
+        Hard cap of 10,000 cells per request (e.g. 100×100 or 50×200).
+        Truck attributes accepted at the request level — useful for fleet
+        scheduling where the entire matrix shares one vehicle profile.
+      operationId: routeMatrix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteMatrixRequest'
+      responses:
+        '200':
+          description: Matrix of distance + duration cells
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteMatrixResponse'
+        '400':
+          description: Bad request (e.g. >10,000 cells, missing sources or targets)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Plan does not include routing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /map-match:
+    post:
+      tags:
+        - Routing
+      summary: Snap a noisy GPS trace to the road network
+      description: |
+        Submit a list of lat/lng points (optionally with timestamps and per-point
+        accuracy estimates). The engine returns the cleaned line snapped to
+        the most likely road segments plus per-point matched-road metadata.
+        Up to 1,000 points per request.
+      operationId: mapMatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MapMatchRequest'
+      responses:
+        '200':
+          description: Map-matched trace + per-point metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapMatchResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Plan does not include routing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /optimize_route:
+    get:
+      tags:
+        - Routing
+      summary: Multi-stop route optimization (TSP)
+      description: |
+        Reorder a list of waypoints to minimize total drive time (or walk/bike/
+        truck time per `mode=`). Returns the optimized visit order plus the
+        same response shape as `/v1/routing` for the resulting path.
+
+        Set `roundtrip=true` to return to the origin after visiting all stops.
+      operationId: optimizeRoute
+      parameters:
+        - name: waypoints
+          in: query
+          required: true
+          description: 3+ `lat,lng` pairs pipe-delimited. First entry is treated as the origin.
+          schema:
+            type: string
+          example: "40.7128,-74.0060|34.0522,-118.2437|29.7604,-95.3698"
+        - name: mode
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [drive, walk, bike, truck, motorcycle]
+        - name: roundtrip
+          in: query
+          required: false
+          description: Return to the origin after the last stop
+          schema:
+            type: boolean
+            default: false
+        - name: units
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [km, mi]
+            default: km
+      responses:
+        '200':
+          description: Optimized visit order + route
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptimizeRouteResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Plan does not include routing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /locate:
+    get:
+      tags:
+        - Routing
+      summary: Snap a single point to the nearest road segment
+      description: |
+        Given a lat/lng, return the nearest road in the routable network
+        along with its corrected coordinate, road name, class, and speed
+        limit (where available).
+      operationId: locate
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          example: 40.7128
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          example: -74.0060
+        - name: mode
+          in: query
+          required: false
+          description: Restrict snap to roads usable by the given mode
+          schema:
+            type: string
+            enum: [drive, walk, bike, truck, motorcycle]
+            default: drive
+        - name: radius_m
+          in: query
+          required: false
+          description: Maximum snap distance in meters
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+            default: 500
+      responses:
+        '200':
+          description: Snapped point + road metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocateResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Plan does not include routing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /elevation:
+    get:
+      tags:
+        - Routing
+      summary: Per-point elevation along a coordinate list
+      description: |
+        Return elevation (meters above sea level) for each input coordinate.
+        Useful for computing climb / descent / gradient profiles along a
+        route or a recorded GPS track.
+
+        Up to 1000 points per request.
+      operationId: elevation
+      parameters:
+        - name: points
+          in: query
+          required: true
+          description: Pipe-delimited `lat,lng` pairs, or an encoded polyline-6 string
+          schema:
+            type: string
+          example: "40.7128,-74.0060|40.7589,-73.9851"
+        - name: units
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [metric, imperial]
+            default: metric
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [array, geojson]
+            default: array
+      responses:
+        '200':
+          description: Per-point elevation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ElevationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Plan does not include routing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     ApiKeyQuery:
@@ -3859,3 +4402,424 @@ components:
           type: string
           nullable: true
           example: "Q82499"
+
+    # ── Routing schemas (Sprint 2.4) ────────────────────────────────────
+    RoutingResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          properties:
+            distance_m:
+              type: number
+              description: Total route distance in meters
+              example: 4500000
+            duration_s:
+              type: number
+              description: Total route duration in seconds (factoring `depart_at` traffic if provided)
+              example: 158400
+            geometry:
+              description: |
+                LineString of the full route. Shape depends on `format=`:
+                - `geojson` (default) — GeoJSON LineString with `[lng, lat]` coordinates
+                - `polyline` — encoded polyline-6 string (precision 1e-6, not Google's 1e-5)
+              oneOf:
+                - $ref: '#/components/schemas/GeoJSONLineString'
+                - type: string
+            waypoints:
+              type: array
+              description: Echoed input waypoints in order
+              items:
+                $ref: '#/components/schemas/Coordinate'
+            legs:
+              type: array
+              description: Per-leg breakdown (one entry per waypoint pair)
+              items:
+                $ref: '#/components/schemas/RouteLeg'
+            alternates:
+              type: array
+              description: |
+                Alternate routes (only present when `alternatives>0` was requested).
+                Each has the same shape as the primary result minus the `alternates` key.
+              items:
+                $ref: '#/components/schemas/RouteAlternate'
+        meta:
+          $ref: '#/components/schemas/RoutingMeta'
+
+    RouteLeg:
+      type: object
+      properties:
+        distance_m:
+          type: number
+        duration_s:
+          type: number
+        steps:
+          type: array
+          description: Turn-by-turn maneuvers (only when `instructions=true`)
+          items:
+            $ref: '#/components/schemas/RouteStep'
+
+    RouteStep:
+      type: object
+      properties:
+        instruction:
+          type: string
+          example: "Turn left onto West 42nd Street."
+        distance_m:
+          type: number
+        duration_s:
+          type: number
+        street_name:
+          type: string
+          nullable: true
+        maneuver:
+          type: string
+          description: Maneuver type (e.g. `turn-left`, `merge`, `roundabout`, `arrive`)
+
+    RouteAlternate:
+      type: object
+      properties:
+        distance_m:
+          type: number
+        duration_s:
+          type: number
+        geometry:
+          oneOf:
+            - $ref: '#/components/schemas/GeoJSONLineString'
+            - type: string
+        legs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteLeg'
+
+    Coordinate:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+
+    GeoJSONLineString:
+      type: object
+      description: GeoJSON LineString geometry
+      properties:
+        type:
+          type: string
+          enum: [LineString]
+          example: LineString
+        coordinates:
+          type: array
+          items:
+            type: array
+            minItems: 2
+            maxItems: 3
+            items:
+              type: number
+          example: [[-74.0060, 40.7128], [-74.0058, 40.7130], [-74.0050, 40.7140]]
+
+    GeoJSONPolygon:
+      type: object
+      description: GeoJSON Polygon geometry
+      properties:
+        type:
+          type: string
+          enum: [Polygon]
+          example: Polygon
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              minItems: 2
+              maxItems: 3
+              items:
+                type: number
+
+    RoutingMeta:
+      type: object
+      properties:
+        version:
+          type: string
+          example: "1.0.0"
+        engine:
+          type: string
+          example: "valhalla"
+        request_id:
+          type: string
+          example: "rt_01H8X9..."
+
+    IsolineResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          properties:
+            ranges:
+              type: array
+              description: One entry per requested range (in input order)
+              items:
+                type: object
+                properties:
+                  range:
+                    type: number
+                    description: Requested range value (seconds or meters per `type=`)
+                    example: 600
+                  type:
+                    type: string
+                    enum: [time, distance]
+                  geometry:
+                    $ref: '#/components/schemas/GeoJSONPolygon'
+                  area_km2:
+                    type: number
+                    description: Polygon area in square kilometers
+            mode:
+              type: string
+            origin:
+              $ref: '#/components/schemas/Coordinate'
+        meta:
+          $ref: '#/components/schemas/RoutingMeta'
+
+    RouteMatrixRequest:
+      type: object
+      required: [sources, targets, mode]
+      properties:
+        sources:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/Coordinate'
+          example: [{lat: 40.7128, lng: -74.0060}, {lat: 40.7589, lng: -73.9851}]
+        targets:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/Coordinate'
+          example: [{lat: 34.0522, lng: -118.2437}, {lat: 29.7604, lng: -95.3698}]
+        mode:
+          type: string
+          enum: [drive, walk, bike, truck, motorcycle]
+        units:
+          type: string
+          enum: [km, mi]
+          default: km
+        include:
+          type: array
+          description: Filter the response to only `distances`, only `durations`, or both
+          items:
+            type: string
+            enum: [distances, durations]
+          default: [distances, durations]
+        depart_at:
+          type: string
+          format: date-time
+        truck_height:
+          type: number
+        truck_weight:
+          type: number
+        truck_length:
+          type: number
+        truck_width:
+          type: number
+        truck_hazmat:
+          type: boolean
+
+    RouteMatrixResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          properties:
+            distances:
+              type: array
+              description: 2D array `[source][target]` of distances in meters (or miles if `units=mi`)
+              items:
+                type: array
+                items:
+                  type: number
+            durations:
+              type: array
+              description: 2D array `[source][target]` of durations in seconds
+              items:
+                type: array
+                items:
+                  type: number
+            sources:
+              type: array
+              items:
+                $ref: '#/components/schemas/Coordinate'
+            targets:
+              type: array
+              items:
+                $ref: '#/components/schemas/Coordinate'
+            mode:
+              type: string
+        meta:
+          $ref: '#/components/schemas/RoutingMeta'
+
+    MapMatchRequest:
+      type: object
+      required: [trace, mode]
+      properties:
+        trace:
+          type: array
+          minItems: 2
+          maxItems: 1000
+          items:
+            type: object
+            required: [lat, lng]
+            properties:
+              lat:
+                type: number
+                format: double
+              lng:
+                type: number
+                format: double
+              time:
+                type: string
+                format: date-time
+                description: Optional per-point timestamp (improves matching)
+              accuracy_m:
+                type: number
+                description: Optional per-point horizontal accuracy in meters
+        mode:
+          type: string
+          enum: [drive, walk, bike, truck, motorcycle]
+        gps_accuracy_m:
+          type: number
+          description: Default per-point accuracy when not specified inline
+          default: 10
+        include_steps:
+          type: boolean
+          description: Include turn-by-turn instructions for the matched route
+          default: false
+
+    MapMatchResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          properties:
+            geometry:
+              $ref: '#/components/schemas/GeoJSONLineString'
+            distance_m:
+              type: number
+            duration_s:
+              type: number
+            matched_points:
+              type: array
+              description: Per-input-point match metadata, in input order
+              items:
+                type: object
+                properties:
+                  lat:
+                    type: number
+                  lng:
+                    type: number
+                  type:
+                    type: string
+                    description: "`matched` if successfully snapped, `interpolated` if filled by the engine, `unmatched` if outside the tile set"
+                    enum: [matched, interpolated, unmatched]
+                  edge_index:
+                    type: integer
+                    nullable: true
+                  way_id:
+                    type: integer
+                    nullable: true
+                    description: OSM way ID of the matched segment
+        meta:
+          $ref: '#/components/schemas/RoutingMeta'
+
+    OptimizeRouteResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          properties:
+            order:
+              type: array
+              description: Optimized visit order — array of indices into the input `waypoints` list
+              items:
+                type: integer
+              example: [0, 2, 1, 3]
+            distance_m:
+              type: number
+            duration_s:
+              type: number
+            geometry:
+              $ref: '#/components/schemas/GeoJSONLineString'
+            legs:
+              type: array
+              items:
+                $ref: '#/components/schemas/RouteLeg'
+        meta:
+          $ref: '#/components/schemas/RoutingMeta'
+
+    LocateResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          properties:
+            input:
+              $ref: '#/components/schemas/Coordinate'
+            snapped:
+              $ref: '#/components/schemas/Coordinate'
+            distance_m:
+              type: number
+              description: Distance from input point to the snapped point
+            road:
+              type: object
+              properties:
+                name:
+                  type: string
+                  nullable: true
+                  example: "West 42nd Street"
+                class:
+                  type: string
+                  description: OSM-style road class
+                  example: "secondary"
+                speed_limit_kph:
+                  type: integer
+                  nullable: true
+                  example: 50
+                way_id:
+                  type: integer
+                  nullable: true
+                  description: OSM way ID of the snapped segment
+        meta:
+          $ref: '#/components/schemas/RoutingMeta'
+
+    ElevationResponse:
+      type: object
+      properties:
+        result:
+          type: object
+          properties:
+            elevations:
+              type: array
+              description: Per-input-point elevation. Units are meters by default, feet if `units=imperial`.
+              items:
+                type: object
+                properties:
+                  lat:
+                    type: number
+                  lng:
+                    type: number
+                  elevation:
+                    type: number
+                    nullable: true
+                    description: null when no elevation tile covers the point
+              example:
+                - {lat: 40.7128, lng: -74.0060, elevation: 10}
+                - {lat: 40.7589, lng: -73.9851, elevation: 21}
+            units:
+              type: string
+              enum: [metric, imperial]
+        meta:
+          $ref: '#/components/schemas/RoutingMeta'
