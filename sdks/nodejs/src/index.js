@@ -767,6 +767,216 @@ class Client {
     }
     return this._request('POST', '/ip/batch', {}, { ips });
   }
+
+  // ─────────────────────────────────────────────────────────
+  // Routing (Sprint 2.4) — Pro and Unlimited plans only.
+  // Seven methods proxy to a Valhalla service behind csv2geo.com.
+  // Contract spec: docs/sprint-2.4-routing-endpoints.md.
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Internal: format waypoints as "lat,lng|lat,lng" or accept a string.
+   * @private
+   */
+  _formatWaypoints(waypoints) {
+    if (typeof waypoints === 'string') return waypoints;
+    if (!Array.isArray(waypoints) || waypoints.length < 1) {
+      throw new InvalidRequestError('waypoints must be an array of [lat, lng] pairs');
+    }
+    return waypoints.map((pt, i) => {
+      if (!Array.isArray(pt) || pt.length !== 2) {
+        throw new InvalidRequestError(`waypoint ${i} must be a [lat, lng] tuple`);
+      }
+      return `${pt[0]},${pt[1]}`;
+    }).join('|');
+  }
+
+  /**
+   * Point-to-point routing. GET /routing.
+   * @param {Array<[number,number]>|string} waypoints - 2-25 [lat, lng] pairs OR pre-formatted string
+   * @param {Object} [opts]
+   * @param {string} [opts.mode='drive'] - drive|truck|walk|bike|motorcycle
+   * @param {string} [opts.lang] - ISO 639-1 narration language
+   * @param {string} [opts.units] - "metric" (default) or "imperial"
+   * @param {string} [opts.avoid] - csv "highways,tolls,ferries"
+   * @param {number} [opts.alternatives] - 0-3 alternative routes
+   * @param {boolean} [opts.instructions] - include turn-by-turn list
+   * @param {string} [opts.departureTime] - ISO 8601 timestamp for time-aware routing
+   * @param {number} [opts.truckHeight], {number} [opts.truckWeight], {number} [opts.truckLength], {number} [opts.truckWidth]
+   * @param {boolean} [opts.truckHazmat]
+   * @param {string} [opts.costingOptions] - JSON string, advanced
+   * @param {string} [opts.format] - "geojson" (default), "polyline", "both"
+   */
+  async route(waypoints, opts = {}) {
+    const params = {
+      waypoints: this._formatWaypoints(waypoints),
+      mode: opts.mode || 'drive',
+    };
+    const map = {
+      lang: 'lang', units: 'units', avoid: 'avoid',
+      alternatives: 'alternatives', departureTime: 'departure_time',
+      truckHeight: 'truck_height', truckWeight: 'truck_weight',
+      truckLength: 'truck_length', truckWidth: 'truck_width',
+      costingOptions: 'costing_options', format: 'format',
+    };
+    for (const [src, dst] of Object.entries(map)) {
+      if (opts[src] !== undefined && opts[src] !== null) params[dst] = opts[src];
+    }
+    if (opts.instructions) params.instructions = 'true';
+    if (opts.truckHazmat) params.truck_hazmat = 'true';
+    return this._request('GET', '/routing', params);
+  }
+
+  /**
+   * Reachability polygon(s). GET /isoline.
+   * @param {Object} args
+   * @param {number} args.lat
+   * @param {number} args.lng
+   * @param {string} args.mode - drive|truck|walk|bike|motorcycle
+   * @param {Array<number>|string} args.ranges - 1-3 ints (seconds or meters) or csv string
+   * @param {string} [args.type='time'] - "time" or "distance"
+   * @param {number} [args.denoise]
+   * @param {string} [args.format]
+   */
+  async isoline(args) {
+    const { lat, lng, mode, ranges, type = 'time', denoise, format } = args || {};
+    if (lat == null || lng == null) {
+      throw new InvalidRequestError('lat and lng required');
+    }
+    if (!mode) throw new InvalidRequestError('mode required');
+    if (!ranges) throw new InvalidRequestError('ranges required');
+    const rangesStr = Array.isArray(ranges)
+      ? ranges.map(r => parseInt(r, 10)).join(',')
+      : String(ranges);
+    const params = { lat, lng, mode, type, ranges: rangesStr };
+    if (denoise !== undefined) params.denoise = denoise;
+    if (format !== undefined)  params.format  = format;
+    return this._request('GET', '/isoline', params);
+  }
+
+  /**
+   * N×M distance/time matrix. POST /route-matrix.
+   * @param {Object} args
+   * @param {Array<{lat:number,lng:number}>|Array<[number,number]>} args.sources - 1-100 points
+   * @param {Array<{lat:number,lng:number}>|Array<[number,number]>} args.targets - 1-100 points (max 10000 cells N*M)
+   * @param {string} args.mode
+   * @param {string} [args.units]
+   * @param {string[]} [args.include] - ["distances","durations"]
+   * @param {number} [args.truckHeight], {number} [args.truckWeight], {number} [args.truckLength], {number} [args.truckWidth]
+   * @param {boolean} [args.truckHazmat]
+   */
+  async routeMatrix(args) {
+    const { sources, targets, mode, units, include } = args || {};
+    if (!Array.isArray(sources) || sources.length === 0) {
+      throw new InvalidRequestError('sources must be a non-empty array');
+    }
+    if (!Array.isArray(targets) || targets.length === 0) {
+      throw new InvalidRequestError('targets must be a non-empty array');
+    }
+    if (!mode) throw new InvalidRequestError('mode required');
+    const norm = (pts) => pts.map((p, i) => {
+      if (Array.isArray(p) && p.length === 2) return { lat: p[0], lng: p[1] };
+      if (p && typeof p === 'object' && 'lat' in p && ('lng' in p || 'lon' in p)) {
+        return { lat: p.lat, lng: p.lng ?? p.lon };
+      }
+      throw new InvalidRequestError(`point ${i} must be {lat,lng} or [lat,lng]`);
+    });
+    const body = { sources: norm(sources), targets: norm(targets), mode };
+    if (units) body.units = units;
+    if (include) body.include = include;
+    for (const [src, dst] of [['truckHeight','truck_height'],['truckWeight','truck_weight'],
+                              ['truckLength','truck_length'],['truckWidth','truck_width']]) {
+      if (args[src] !== undefined) body[dst] = args[src];
+    }
+    if (args.truckHazmat !== undefined) body.truck_hazmat = !!args.truckHazmat;
+    return this._request('POST', '/route-matrix', {}, body);
+  }
+
+  /**
+   * Snap a GPS trace to roads. POST /map-match.
+   * @param {Object} args
+   * @param {Array} args.trace - 2-1000 points (each {lat,lng} or [lat,lng], optional time + accuracy_m)
+   * @param {string} args.mode
+   * @param {number} [args.gpsAccuracyM]
+   * @param {string[]} [args.include]
+   */
+  async mapMatch(args) {
+    const { trace, mode, gpsAccuracyM, include } = args || {};
+    if (!Array.isArray(trace) || trace.length < 2) {
+      throw new InvalidRequestError('trace must have at least 2 points');
+    }
+    if (!mode) throw new InvalidRequestError('mode required');
+    const norm = trace.map((p, i) => {
+      if (Array.isArray(p) && p.length >= 2) return { lat: p[0], lng: p[1] };
+      if (p && typeof p === 'object' && 'lat' in p) {
+        const out = { lat: p.lat, lng: p.lng ?? p.lon };
+        if (p.time !== undefined)       out.time = p.time;
+        if (p.accuracy_m !== undefined) out.accuracy_m = p.accuracy_m;
+        else if (p.accuracyM !== undefined) out.accuracy_m = p.accuracyM;
+        return out;
+      }
+      throw new InvalidRequestError(`trace point ${i} must be {lat,lng} or [lat,lng]`);
+    });
+    const body = { trace: norm, mode };
+    if (gpsAccuracyM !== undefined) body.gps_accuracy_m = gpsAccuracyM;
+    if (include !== undefined)      body.include = include;
+    return this._request('POST', '/map-match', {}, body);
+  }
+
+  /**
+   * TSP-style stop ordering. GET /optimize_route.
+   * @param {Array<[number,number]>|string} waypoints - 2-20 [lat, lng] pairs
+   * @param {Object} [opts]
+   * @param {string} [opts.mode='drive']
+   * @param {boolean} [opts.roundtrip]
+   * @param {string} [opts.lang], {string} [opts.units], {string} [opts.format]
+   * @param {number} [opts.truckHeight], {number} [opts.truckWeight], {number} [opts.truckLength], {number} [opts.truckWidth], {boolean} [opts.truckHazmat]
+   */
+  async optimizeRoute(waypoints, opts = {}) {
+    const params = {
+      waypoints: this._formatWaypoints(waypoints),
+      mode: opts.mode || 'drive',
+    };
+    if (opts.roundtrip) params.roundtrip = 'true';
+    for (const [src, dst] of [['lang','lang'],['units','units'],['format','format'],
+                              ['truckHeight','truck_height'],['truckWeight','truck_weight'],
+                              ['truckLength','truck_length'],['truckWidth','truck_width']]) {
+      if (opts[src] !== undefined && opts[src] !== null) params[dst] = opts[src];
+    }
+    if (opts.truckHazmat) params.truck_hazmat = 'true';
+    return this._request('GET', '/optimize_route', params);
+  }
+
+  /**
+   * Snap a single point to the nearest road. GET /locate.
+   * @param {number} lat
+   * @param {number} lng
+   * @param {Object} [opts]
+   * @param {string} [opts.mode='drive']
+   * @param {number} [opts.radiusM]
+   */
+  async locate(lat, lng, opts = {}) {
+    if (lat == null || lng == null) {
+      throw new InvalidRequestError('lat and lng are required');
+    }
+    const params = { lat, lng, mode: opts.mode || 'drive' };
+    if (opts.radiusM !== undefined) params.radius_m = opts.radiusM;
+    return this._request('GET', '/locate', params);
+  }
+
+  /**
+   * Per-point elevation. GET /elevation.
+   * @param {Array<[number,number]>|string} points - 1-500 [lat, lng] pairs
+   * @param {Object} [opts]
+   * @param {string} [opts.units] - "metric" (default) or "imperial"
+   * @param {string} [opts.format] - "array" (default) or "geojson"
+   */
+  async elevation(points, opts = {}) {
+    const params = { points: this._formatWaypoints(points) };
+    if (opts.units !== undefined)  params.units  = opts.units;
+    if (opts.format !== undefined) params.format = opts.format;
+    return this._request('GET', '/elevation', params);
+  }
 }
 
 module.exports = {
