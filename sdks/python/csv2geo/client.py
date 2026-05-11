@@ -860,6 +860,194 @@ class Client:
         return self._request("GET", "/health")
 
     # ─────────────────────────────────────────────────────────
+    # Routing (Sprint 2.4) — Pro and Unlimited plans only.
+    # Seven methods proxy to a Valhalla service behind csv2geo.com.
+    # Contract spec: docs/sprint-2.4-routing-endpoints.md.
+    # ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _format_waypoints(waypoints) -> str:
+        """Internal: accept list of (lat,lng) tuples OR a pre-formatted string."""
+        if isinstance(waypoints, str):
+            return waypoints
+        if not isinstance(waypoints, (list, tuple)) or len(waypoints) < 1:
+            raise InvalidRequestError("waypoints must be a list of (lat, lng) tuples")
+        parts = []
+        for i, pt in enumerate(waypoints):
+            if not isinstance(pt, (list, tuple)) or len(pt) != 2:
+                raise InvalidRequestError(f"waypoint {i} must be a (lat, lng) tuple")
+            parts.append(f"{pt[0]},{pt[1]}")
+        return "|".join(parts)
+
+    def route(self, waypoints, mode: str = "drive", lang: str = None,
+              units: str = None, avoid: str = None, alternatives: int = None,
+              instructions: bool = False, departure_time: str = None,
+              truck_height: float = None, truck_weight: float = None,
+              truck_length: float = None, truck_width: float = None,
+              truck_hazmat: bool = None, costing_options: str = None,
+              format: str = None) -> dict:
+        """Point-to-point routing. GET /routing.
+
+        Args:
+            waypoints: list of (lat, lng) tuples (2-25 points) OR a pre-formatted
+                       "lat1,lng1|lat2,lng2" string.
+            mode: drive | truck | walk | bike | motorcycle
+            lang: ISO 639-1 for turn-by-turn instructions (default en)
+            units: "metric" (default) or "imperial"
+            avoid: csv of features to skip — "highways,tolls,ferries"
+            alternatives: 0-3 alternative routes (default 0)
+            instructions: True to include the turn-by-turn step list
+            departure_time: ISO 8601 timestamp for time-aware routing
+            truck_height/weight/length/width: meters/kg (truck mode only)
+            truck_hazmat: True to enable HAZMAT restrictions for truck routing
+            costing_options: JSON string of advanced Valhalla costing overrides
+            format: "geojson" (default), "polyline", or "both"
+        """
+        params = {"waypoints": self._format_waypoints(waypoints), "mode": mode}
+        for k, v in [("lang", lang), ("units", units), ("avoid", avoid),
+                     ("alternatives", alternatives), ("departure_time", departure_time),
+                     ("truck_height", truck_height), ("truck_weight", truck_weight),
+                     ("truck_length", truck_length), ("truck_width", truck_width),
+                     ("costing_options", costing_options), ("format", format)]:
+            if v is not None:
+                params[k] = v
+        if instructions:
+            params["instructions"] = "true"
+        if truck_hazmat:
+            params["truck_hazmat"] = "true"
+        return self._request("GET", "/routing", params=params)
+
+    def isoline(self, lat: float, lng: float, mode: str, ranges,
+                type: str = "time", denoise: float = None,
+                format: str = None) -> dict:
+        """Reachability polygon(s). GET /isoline.
+
+        Args:
+            lat, lng: origin point
+            mode: drive | truck | walk | bike | motorcycle
+            ranges: list of ints (seconds for type=time, meters for type=distance),
+                    OR a csv string. Max 3 values per request.
+            type: "time" (default) or "distance"
+            denoise: 0-1 polygon smoothing factor (default 0.5)
+            format: "geojson" (default)
+        """
+        if isinstance(ranges, (list, tuple)):
+            ranges_str = ",".join(str(int(r)) for r in ranges)
+        else:
+            ranges_str = str(ranges)
+        params = {"lat": lat, "lng": lng, "mode": mode, "type": type, "ranges": ranges_str}
+        if denoise is not None: params["denoise"] = denoise
+        if format is not None:  params["format"]  = format
+        return self._request("GET", "/isoline", params=params)
+
+    def route_matrix(self, sources, targets, mode: str,
+                     units: str = None, include=None,
+                     truck_height: float = None, truck_weight: float = None,
+                     truck_length: float = None, truck_width: float = None,
+                     truck_hazmat: bool = None) -> dict:
+        """N×M distance/time matrix. POST /route-matrix.
+
+        Args:
+            sources: list of {"lat", "lng"} dicts OR (lat, lng) tuples (1-100)
+            targets: same shape (1-100). N×M cap at 10,000 cells.
+            mode: drive | truck | walk | bike | motorcycle
+            units: "metric" (default) or "imperial"
+            include: ["distances", "durations"] (default both)
+            truck_*: same as route()
+        """
+        def _norm(points):
+            out = []
+            for i, p in enumerate(points):
+                if isinstance(p, dict):
+                    out.append({"lat": p["lat"], "lng": p.get("lng", p.get("lon"))})
+                elif isinstance(p, (list, tuple)) and len(p) == 2:
+                    out.append({"lat": p[0], "lng": p[1]})
+                else:
+                    raise InvalidRequestError(f"point {i} must be a dict or (lat, lng) tuple")
+            return out
+        body = {"sources": _norm(sources), "targets": _norm(targets), "mode": mode}
+        if units:   body["units"] = units
+        if include: body["include"] = list(include)
+        for k, v in [("truck_height", truck_height), ("truck_weight", truck_weight),
+                     ("truck_length", truck_length), ("truck_width", truck_width)]:
+            if v is not None: body[k] = v
+        if truck_hazmat is not None: body["truck_hazmat"] = bool(truck_hazmat)
+        return self._request("POST", "/route-matrix", json=body)
+
+    def map_match(self, trace, mode: str, gps_accuracy_m: float = None,
+                  include=None) -> dict:
+        """Snap a GPS trace to roads. POST /map-match.
+
+        Args:
+            trace: list of dicts (lat, lng, optional time ISO 8601, accuracy_m)
+                   OR (lat, lng) tuples. 2-1000 points.
+            mode: drive | truck | walk | bike | motorcycle
+            gps_accuracy_m: overall noise level if per-point accuracy_m absent
+            include: optional extras — "geometry" (default), "instructions", "matched_points"
+        """
+        norm = []
+        for i, p in enumerate(trace):
+            if isinstance(p, dict):
+                norm.append({k: p[k] for k in ("lat", "lng", "time", "accuracy_m") if k in p})
+            elif isinstance(p, (list, tuple)) and len(p) >= 2:
+                norm.append({"lat": p[0], "lng": p[1]})
+            else:
+                raise InvalidRequestError(f"trace point {i} must be a dict or (lat, lng) tuple")
+        body = {"trace": norm, "mode": mode}
+        if gps_accuracy_m is not None: body["gps_accuracy_m"] = gps_accuracy_m
+        if include is not None:        body["include"] = list(include)
+        return self._request("POST", "/map-match", json=body)
+
+    def optimize_route(self, waypoints, mode: str, roundtrip: bool = False,
+                       lang: str = None, units: str = None,
+                       format: str = None,
+                       truck_height: float = None, truck_weight: float = None,
+                       truck_length: float = None, truck_width: float = None,
+                       truck_hazmat: bool = None) -> dict:
+        """TSP-style stop ordering. GET /optimize_route.
+
+        Args:
+            waypoints: 2-20 (lat, lng) tuples — origin first, then stops
+            mode: drive | truck | walk | bike | motorcycle
+            roundtrip: True to return to origin after last stop
+            lang / units / format / truck_*: same as route()
+        """
+        params = {"waypoints": self._format_waypoints(waypoints), "mode": mode}
+        if roundtrip:                  params["roundtrip"] = "true"
+        for k, v in [("lang", lang), ("units", units), ("format", format),
+                     ("truck_height", truck_height), ("truck_weight", truck_weight),
+                     ("truck_length", truck_length), ("truck_width", truck_width)]:
+            if v is not None: params[k] = v
+        if truck_hazmat: params["truck_hazmat"] = "true"
+        return self._request("GET", "/optimize_route", params=params)
+
+    def locate(self, lat: float, lng: float, mode: str = "drive",
+               radius_m: int = None) -> dict:
+        """Snap a single point to nearest road. GET /locate.
+
+        Args:
+            lat, lng: query point
+            mode: filter to roads valid for this mode (default drive)
+            radius_m: search radius in meters (default 500, max 5000)
+        """
+        params = {"lat": lat, "lng": lng, "mode": mode}
+        if radius_m is not None: params["radius_m"] = radius_m
+        return self._request("GET", "/locate", params=params)
+
+    def elevation(self, points, units: str = None, format: str = None) -> dict:
+        """Per-point elevation. GET /elevation.
+
+        Args:
+            points: list of (lat, lng) tuples (1-500) OR pre-formatted string
+            units: "metric" (default — meters) or "imperial" (feet)
+            format: "array" (default) or "geojson" (LineString w/ z-coord)
+        """
+        params = {"points": self._format_waypoints(points)}
+        if units is not None:  params["units"]  = units
+        if format is not None: params["format"] = format
+        return self._request("GET", "/elevation", params=params)
+
+    # ─────────────────────────────────────────────────────────
 
     def close(self):
         """Close the client session."""
