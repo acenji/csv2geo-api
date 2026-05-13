@@ -2,6 +2,34 @@
 
 All notable changes to the Python SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to PyPI as [`csv2geo`](https://pypi.org/project/csv2geo/).
 
+## [1.8.0] — 2026-05-13 — Routing API (Sprint 2.4)
+
+### Added — 7 new routing methods (Pro and Unlimited plans only)
+
+All seven methods proxy to a self-hosted Valhalla engine. They require the `routing` permission on the API key AND a Pro or Unlimited subscription. Free/Growth keys receive `403 plan_permission_denied`.
+
+- `route(waypoints, mode, lang, units, avoid, alternatives, instructions, departure_time, truck_*, costing_options, format)` — turn-by-turn routing through 2-25 waypoints; supports time-aware routing (`departure_time`), up to 3 alternatives, and per-mode truck attributes (height, weight, length, width, hazmat).
+- `isoline(lat, lng, mode, ranges, type, denoise, format)` — reachability polygon(s); 1-3 ranges per call, time (≤3600 s) or distance (≤50 000 m).
+- `route_matrix(sources, targets, mode, units, include, truck_*)` — N×M distance/time matrix up to 10 000 cells.
+- `map_match(trace, mode, gps_accuracy_m, include)` — snap GPS trace (2-1000 points) to the road network.
+- `optimize_route(waypoints, mode, roundtrip, lang, units, format, truck_*)` — TSP-style stop ordering up to 20 waypoints.
+- `locate(lat, lng, mode, radius_m)` — snap a single point to the nearest road; returns way_id, road class, surface, speed limit.
+- `elevation(points, units, format)` — per-point elevation (Copernicus DEM tile install pending on geocoder; calls return `503 elevation_data_unavailable` until provisioned).
+
+### Example
+
+```python
+from csv2geo import Client
+client = Client("geo_live_...")
+
+result = client.route(
+    waypoints=[(40.7128, -74.006), (34.0522, -118.2437)],
+    mode="drive",
+    units="metric",
+)
+print(result["results"][0]["summary"])  # distance_m, duration_s, has_ferry, ...
+```
+
 ## [1.6.0] — 2026-05-09 — Customer-URL gap closed + SDK signature corrections
 
 ### Fixed (the customer-URL gap — Sprint A)
