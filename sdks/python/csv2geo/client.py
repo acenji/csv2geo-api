@@ -14,6 +14,20 @@ from .exceptions import (
     APIError,
 )
 
+# Pull the version from package metadata so the User-Agent never drifts
+# behind a version bump. Caught 2026-05-13 in CI: the previous code hard-coded
+# 'csv2geo-python/1.4.0' and stayed that way through 1.5.0/1.6.0/1.7.x/1.8.0
+# releases. Same drift the Node SDK had — fixed in lockstep. Uses
+# importlib.metadata (not `from . import __version__`) to avoid the circular
+# import that breaks the package's normal init order.
+try:
+    from importlib.metadata import version as _pkg_version
+    _SDK_VERSION = _pkg_version("csv2geo")
+except Exception:
+    # Fallback for source-tree-only checkouts where the package isn't installed.
+    _SDK_VERSION = "0.0.0+source"
+_USER_AGENT = f"csv2geo-python/{_SDK_VERSION}"
+
 
 class Client:
     """
@@ -74,7 +88,7 @@ class Client:
         self._session = requests.Session()
         self._session.headers.update({
             "Authorization": f"Bearer {self.api_key}",
-            "User-Agent": "csv2geo-python/1.4.0",
+            "User-Agent": _USER_AGENT,
             "Content-Type": "application/json",
         })
 
