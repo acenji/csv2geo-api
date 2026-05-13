@@ -2,6 +2,17 @@
 
 All notable changes to the Python SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to PyPI as [`csv2geo`](https://pypi.org/project/csv2geo/).
 
+## [1.8.1] — 2026-05-13 — UA-drift hotfix
+
+### Fixed
+- `Client` User-Agent header was hardcoded as `csv2geo-python/1.4.0` and
+  stayed that way through every release from 1.5.0 onward. Now reads from
+  the installed package metadata via `importlib.metadata.version("csv2geo")`,
+  so any future version bump auto-updates the UA. CI's anti-drift test
+  enforces this going forward. Customers using 1.8.0 are sending traffic
+  identified as `csv2geo-python/1.4.0` until they upgrade — recommend
+  `pip install -U csv2geo` to get accurate access-log attribution.
+
 ## [1.8.0] — 2026-05-13 — Routing API (Sprint 2.4)
 
 ### Added — 7 new routing methods (Pro and Unlimited plans only)

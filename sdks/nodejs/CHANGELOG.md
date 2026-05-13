@@ -2,6 +2,17 @@
 
 All notable changes to the Node SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to npm as [`csv2geo-sdk`](https://www.npmjs.com/package/csv2geo-sdk).
 
+## [1.8.1] — 2026-05-13 — UA-drift hotfix
+
+### Fixed
+- `Client` User-Agent header was hardcoded as `csv2geo-node/1.4.0` and
+  stayed that way through every release from 1.5.0 onward. Now reads from
+  `../package.json` at module load via
+  `require('../package.json').version`, so any future bump auto-updates
+  the UA. CI's anti-drift test enforces this going forward. Customers
+  using 1.8.0 are sending traffic identified as `csv2geo-node/1.4.0`
+  until they upgrade — recommend `npm install csv2geo-sdk@latest`.
+
 ## [1.8.0] — 2026-05-13 — Routing API (Sprint 2.4)
 
 ### Added — 7 new routing methods (Pro and Unlimited plans only)
