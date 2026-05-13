@@ -378,6 +378,77 @@ export class Client {
     points: Array<[number, number]> | string,
     opts?: ElevationOptions
   ): Promise<ElevationResponse>;
+
+  // ─────────────────────────────────────────────────────────
+  // Async batch wrapper (Sprint 2.5)
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Create an async batch job that fans `inputs` out across one wrapped endpoint.
+   * Returns immediately with HTTP 202 and a job descriptor.
+   */
+  batchCreate(
+    api: string,
+    inputs: Array<{ id?: string; params: Record<string, unknown> }>,
+    opts?: { params?: Record<string, unknown> }
+  ): Promise<BatchCreateResponse>;
+
+  /**
+   * Poll a batch job by id. Returns 202-shaped body while the job is
+   * pending or running; 200-shaped body (with `results`) when complete.
+   * Pass `opts.compat = 'geoapify'` for the flat-array drop-in shape.
+   */
+  batchGet(
+    jobId: string,
+    opts?: { compat?: 'geoapify' }
+  ): Promise<BatchGetResponse | BatchGeoapifyResult[]>;
+
+  /** Cancel a pending or running batch job. */
+  batchCancel(jobId: string): Promise<{ id: string; status: 'cancelled' }>;
+
+  /**
+   * Poll batchGet() until the job terminates, then return the final body.
+   * Convenience wrapper for callers that don't want their own poll loop.
+   */
+  batchWait(
+    jobId: string,
+    opts?: { pollIntervalMs?: number; timeoutMs?: number }
+  ): Promise<BatchGetResponse>;
+}
+
+export interface BatchCreateResponse {
+  id: string;
+  status_url: string;
+  status: 'pending';
+  total_inputs: number;
+  created_at: string;
+}
+
+export interface BatchResultEntry {
+  input_id?: string;
+  status: number;
+  result?: unknown;
+  error?: { code: string; message?: string };
+  query?: Record<string, unknown>;
+}
+
+export interface BatchGetResponse {
+  id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  wrapped_endpoint: string;
+  total_inputs: number;
+  completed_inputs: number;
+  created_at: string;
+  started_at?: string;
+  finished_at?: string;
+  results?: BatchResultEntry[];
+  error?: { code: string; message?: string };
+}
+
+export interface BatchGeoapifyResult {
+  id?: string;
+  query?: Record<string, unknown>;
+  result?: unknown;
 }
 
 export interface IPGeoResponse {

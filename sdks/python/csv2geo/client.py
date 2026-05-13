@@ -104,7 +104,10 @@ class Client:
         self.rate_limit_remaining = response.headers.get("X-RateLimit-Remaining")
         self.rate_limit_reset = response.headers.get("X-RateLimit-Reset")
 
-        if response.status_code == 200:
+        # Any 2xx is success. Async endpoints like /v1/batch return 202
+        # (Accepted) on create + while polling pending/running; the
+        # response body is still JSON we want to surface to the caller.
+        if 200 <= response.status_code < 300:
             return response.json()
 
         # Handle errors
@@ -1060,6 +1063,82 @@ class Client:
         if units is not None:  params["units"]  = units
         if format is not None: params["format"] = format
         return self._request("GET", "/elevation", params=params)
+
+    # ─────────────────────────────────────────────────────────
+    # Async batch wrapper (Sprint 2.5)
+    # ─────────────────────────────────────────────────────────
+
+    def batch_create(self, api: str, inputs: List[dict], params: dict = None) -> dict:
+        """Create an async batch job that fans `inputs` out across a single
+        wrapped endpoint.
+
+        Args:
+            api: wrapped endpoint, e.g. "/v1/geocode" (accepts "geocode" too)
+            inputs: list of {"id": optional_str, "params": {…}} dicts
+            params: optional shared params merged into every input
+
+        Returns:
+            dict with keys: id, status_url, status, total_inputs, created_at
+
+        Example:
+            job = client.batch_create(
+                "/v1/geocode",
+                inputs=[
+                    {"id": "a", "params": {"q": "90210", "country": "US"}},
+                    {"id": "b", "params": {"q": "10001", "country": "US"}},
+                ],
+                params={"limit": "1"},
+            )
+            done = client.batch_wait(job["id"])
+            for r in done["results"]:
+                print(r["input_id"], r["status"])
+        """
+        body = {"api": api, "inputs": inputs}
+        if params:
+            body["params"] = params
+        return self._request("POST", "/batch", json=body)
+
+    def batch_get(self, job_id: str, compat: str = None) -> dict:
+        """Poll a batch job. Returns 202-shaped body while pending/running;
+        200-shaped body (with `results`) when completed/failed/cancelled.
+
+        Args:
+            job_id: id returned by batch_create()
+            compat: pass "geoapify" to return the flat-array shape Geoapify's
+                    batch endpoint uses (drop-in SDK compatibility).
+        """
+        params = {}
+        if compat:
+            params["compat"] = compat
+        return self._request("GET", f"/batch/{job_id}", params=params)
+
+    def batch_cancel(self, job_id: str) -> dict:
+        """Cancel a pending or running batch job. Returns 404 if the job is
+        already in a terminal state."""
+        return self._request("DELETE", f"/batch/{job_id}")
+
+    def batch_wait(self, job_id: str, poll_interval: float = 2.0,
+                   timeout: float = 600.0) -> dict:
+        """Poll batch_get() until the job reaches a terminal state, then
+        return the final response. Convenience wrapper around batch_get()
+        for callers that don't want to manage a polling loop themselves.
+
+        Raises APIError(code="batch_wait_timeout") if `timeout` elapses
+        before the job terminates.
+        """
+        start = time.time()
+        terminal = ("completed", "failed", "cancelled")
+        while True:
+            result = self.batch_get(job_id)
+            if result.get("status") in terminal:
+                return result
+            if time.time() - start > timeout:
+                raise APIError(
+                    f"batch_wait timed out after {timeout}s; job is {result.get('status')!r} "
+                    f"with {result.get('completed_inputs')}/{result.get('total_inputs')} done",
+                    code="batch_wait_timeout",
+                )
+            time.sleep(poll_interval)
 
     # ─────────────────────────────────────────────────────────
 

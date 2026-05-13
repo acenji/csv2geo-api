@@ -20,6 +20,12 @@ CSV2GEO is a geocoding service that converts street addresses to geographic coor
 - **Batch processing**: Upload CSV/Excel files with thousands of addresses
 - **WGS84** decimal degree output, compatible with all mapping software
 
+### Why CSV2GEO
+
+- **One call, not two**: postcode → polygon + bbox + population + Wikidata + parent admin chain in a single nested response. Most other boundary APIs make you call once to get an opaque `place_id`, then call again with that ID to fetch the polygon. Two billed calls, two latency tails — for the same answer.
+- **Rich nested data inline**: every geocoding result carries the full admin chain, ISO-3166-2 region code, timezone, and source attribution — no extra fetches required.
+- **Drop-in compatible**: both flat (`lat`/`lon`) and nested (`location.{lat,lng}`) coordinate shapes populated on every result. Both `q` and `text` accepted as input. Most callers migrating from other GeoJSON-shaped geocoders only need to change the base URL.
+
 ### Use Cases
 
 - **Logistics**: Convert delivery addresses to coordinates for route optimization

@@ -983,6 +983,96 @@ class Client {
     if (opts.format !== undefined) params.format = opts.format;
     return this._request('GET', '/elevation', params);
   }
+
+  // ─────────────────────────────────────────────────────────
+  // Async batch wrapper (Sprint 2.5)
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Create an async batch job that fans `inputs` out across a single wrapped endpoint.
+   * Returns { id, status_url, status, total_inputs, created_at } with HTTP 202.
+   *
+   * @param {string} api - Wrapped endpoint, e.g. "/v1/geocode" (accepts "geocode" too)
+   * @param {Array<{id?: string, params: Object}>} inputs
+   * @param {Object} [opts]
+   * @param {Object} [opts.params] - Optional shared params merged into every input
+   *
+   * @example
+   *   const job = await client.batchCreate('/v1/geocode', [
+   *     { id: 'a', params: { q: '90210', country: 'US' } },
+   *     { id: 'b', params: { q: '10001', country: 'US' } },
+   *   ], { params: { limit: '1' } });
+   *   const done = await client.batchWait(job.id);
+   *   for (const r of done.results) console.log(r.input_id, r.status);
+   */
+  async batchCreate(api, inputs, opts = {}) {
+    if (!api || typeof api !== 'string') {
+      throw new InvalidRequestError('api (wrapped endpoint) is required');
+    }
+    if (!Array.isArray(inputs) || inputs.length === 0) {
+      throw new InvalidRequestError('inputs must be a non-empty array');
+    }
+    const body = { api, inputs };
+    if (opts.params) body.params = opts.params;
+    return this._request('POST', '/batch', {}, body);
+  }
+
+  /**
+   * Poll a batch job. Returns 202-shaped body while pending/running;
+   * 200-shaped body (with `results`) when completed/failed/cancelled.
+   *
+   * @param {string} jobId - id returned by batchCreate()
+   * @param {Object} [opts]
+   * @param {string} [opts.compat] - Pass 'geoapify' for drop-in shape compat
+   */
+  async batchGet(jobId, opts = {}) {
+    if (!jobId) throw new InvalidRequestError('jobId is required');
+    const params = {};
+    if (opts.compat) params.compat = opts.compat;
+    return this._request('GET', `/batch/${encodeURIComponent(jobId)}`, params);
+  }
+
+  /**
+   * Cancel a pending or running batch job. Returns 404 if the job is
+   * already in a terminal state.
+   */
+  async batchCancel(jobId) {
+    if (!jobId) throw new InvalidRequestError('jobId is required');
+    return this._request('DELETE', `/batch/${encodeURIComponent(jobId)}`);
+  }
+
+  /**
+   * Poll batchGet() until the job terminates, then return the final body.
+   * Convenience wrapper around batchGet() for callers that don't want to
+   * manage their own polling loop.
+   *
+   * @param {string} jobId
+   * @param {Object} [opts]
+   * @param {number} [opts.pollIntervalMs=2000]
+   * @param {number} [opts.timeoutMs=600000]
+   *
+   * Throws APIError(code='batch_wait_timeout') if `timeoutMs` elapses
+   * before the job terminates.
+   */
+  async batchWait(jobId, opts = {}) {
+    const pollIntervalMs = opts.pollIntervalMs || 2000;
+    const timeoutMs = opts.timeoutMs || 600000;
+    const start = Date.now();
+    const terminal = new Set(['completed', 'failed', 'cancelled']);
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const result = await this.batchGet(jobId);
+      if (terminal.has(result.status)) return result;
+      if (Date.now() - start > timeoutMs) {
+        throw new APIError(
+          `batchWait timed out after ${timeoutMs}ms; job is '${result.status}' ` +
+            `with ${result.completed_inputs}/${result.total_inputs} done`,
+          'batch_wait_timeout',
+        );
+      }
+      await this._sleep(pollIntervalMs);
+    }
+  }
 }
 
 module.exports = {

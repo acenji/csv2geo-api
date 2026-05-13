@@ -134,6 +134,32 @@ else
   FAIL=1
 fi
 
+# Batch wrapper (Sprint 2.5). POST /batch -> 202 + id, GET /batch/{id} -> completed.
+# Two-step probe: submit + poll until terminal. Asserts result count and a
+# minimum number of completed inputs.
+BATCH_BODY='{"api":"/v1/geocode","inputs":[{"id":"a","params":{"q":"90210","country":"US"}},{"id":"b","params":{"q":"10001","country":"US"}}]}'
+BATCH_RESP=$(curl -sS --max-time "$TIMEOUT" -X POST "$BASE/batch?api_key=$KEY" \
+  -H "Content-Type: application/json" -d "$BATCH_BODY" 2>/dev/null) || BATCH_RESP=""
+BATCH_ID=$(echo "$BATCH_RESP" | jq -r '.id // empty' 2>/dev/null)
+if [ -z "$BATCH_ID" ]; then
+  RESULTS+="✘ batch POST: no job id in response ($(echo "$BATCH_RESP" | head -c 200))\n"
+  FAIL=1
+else
+  # Poll up to 10 seconds for a 2-input geocode batch to complete.
+  BATCH_FINAL=""
+  for _ in 1 2 3 4 5; do
+    sleep 1
+    BATCH_FINAL=$(curl -sS --max-time "$TIMEOUT" "$BASE/batch/$BATCH_ID?api_key=$KEY" 2>/dev/null) || BATCH_FINAL=""
+    if echo "$BATCH_FINAL" | jq -e '.status == "completed"' >/dev/null 2>&1; then break; fi
+  done
+  if echo "$BATCH_FINAL" | jq -e '.status == "completed" and (.results | length) == 2 and .results[0].input_id == "a" and .results[0].status == 200' >/dev/null 2>&1; then
+    RESULTS+="✓ batch POST+poll (2-input geocode, terminal in ≤5s)\n"
+  else
+    RESULTS+="✘ batch POST+poll: final state did not match expectations (body: $(echo "$BATCH_FINAL" | head -c 300))\n"
+    FAIL=1
+  fi
+fi
+
 # Probe 12: invalid key path — must return invalid_api_key, NOT 404 / cert error.
 # Proves we're hitting the right Laravel proxy, not stray to the wrong host.
 INVALID_BODY=$(curl -sS --max-time "$TIMEOUT" "$BASE/geocode?q=test&api_key=geo_live_INVALIDinvalidINVALIDinvalid" 2>/dev/null) || INVALID_BODY=""
