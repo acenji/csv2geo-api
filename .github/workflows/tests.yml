@@ -1,0 +1,121 @@
+# CSV2GEO SDK tests — Phase 4 CI gate (Sprint 2.4)
+#
+# Three test layers run on every PR + push to main + nightly:
+#   1. Python SDK unit tests (pytest, no network)
+#   2. Node SDK unit tests   (node --test, no network)
+#   3. Live smoke probes     (Python + Node + bash) against
+#      csv2geo.com/api/v1/* using the CSV2GEO_TEST_KEY repo secret
+#      (csv2geo-ci-test geo_live_****oaax key, Pro tier, owned by
+#      i_assenov@yahoo.com — see hosting/ScaleCampaign/api key/
+#      csv2geo-ivan-api-keys/csv2geo-ci-test-oaax.txt).
+#
+# A 4th layer — OpenAPI lint — runs on PRs that touch openapi.yaml.
+#
+# To add the secret on a new GitHub repo:
+#   Settings → Secrets and variables → Actions → New repository secret
+#     Name:  CSV2GEO_TEST_KEY
+#     Value: contents of csv2geo-ci-test-oaax.txt (the geo_live_... line only)
+#
+# Live probes will gracefully skip (not fail) if the secret is missing.
+
+name: SDK tests + live smoke
+
+on:
+  push:
+    branches: [main, ivan]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 03:00 UTC nightly — runs against live prod to catch drift
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-sdk:
+    name: Python SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]' || pip install -e .
+          pip install pytest pytest-cov
+      - name: Unit tests (no network)
+        run: pytest tests/ -v --ignore=tests/test_smoke_live.py
+      - name: Live smoke probes (skips gracefully without secret)
+        env:
+          CSV2GEO_TEST_KEY: ${{ secrets.CSV2GEO_TEST_KEY }}
+        run: pytest tests/test_smoke_live.py -v
+
+  node-sdk:
+    name: Node SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/nodejs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        run: npm ci || npm install
+      - name: Unit tests (no network)
+        # Run every test except the live-smoke file
+        run: |
+          for f in test/*.test.js; do
+            case "$f" in
+              test/smoke-live.test.js) continue ;;
+              *) echo "→ $f"; node --test "$f" ;;
+            esac
+          done
+      - name: Live smoke probes
+        env:
+          CSV2GEO_TEST_KEY: ${{ secrets.CSV2GEO_TEST_KEY }}
+        run: node --test test/smoke-live.test.js
+
+  smoke-customer-api:
+    name: Smoke probe (bash, customer URL)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: jq
+        run: sudo apt-get update -q && sudo apt-get install -y -q jq
+      - name: Run smoke-customer-api.sh
+        env:
+          CSV2GEO_TEST_KEY: ${{ secrets.CSV2GEO_TEST_KEY }}
+        run: |
+          # smoke-customer-api.sh exit 2 = no key configured (treated as skip),
+          # exit 0 = all green, exit 1 = at least one probe failed.
+          set +e
+          bash scripts/smoke-customer-api.sh
+          rc=$?
+          set -e
+          if [ "$rc" -eq 2 ]; then
+            echo "::warning::CSV2GEO_TEST_KEY not configured; skipping bash live smoke."
+            exit 0
+          fi
+          exit $rc
+
+  openapi-lint:
+    name: OpenAPI lint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: redocly lint
+        run: npx --yes @redocly/cli@latest lint openapi.yaml
