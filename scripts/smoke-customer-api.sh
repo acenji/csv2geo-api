@@ -76,7 +76,65 @@ probe "divisions/by-postcode 90210"                                            \
   "$BASE/divisions/by-postcode?code=90210&country=US&api_key=$KEY"             \
   '.result.population != null or .result.bbox != null'
 
-# Probe 5: invalid key path — must return invalid_api_key, NOT 404 / cert error.
+# Probes 5-11: Routing endpoints (Sprint 2.4). All Pro+ only; if the test
+# key isn't on a Pro/Unlimited plan with the `routing` permission these
+# will fail with 403 — re-key the smoke before fixing the geocoder. The
+# matrix probe also validates that max_matrix_distance is bumped enough
+# for the regional pair to be reachable (Sprint 2.4 phase 6 closeout).
+probe "routing NYC->LA drive"                                                  \
+  "$BASE/routing?waypoints=40.7128,-74.006|34.0522,-118.2437&mode=drive&api_key=$KEY" \
+  '.results[0].summary.distance_m > 4000000 and .results[0].summary.distance_m < 5000000'
+
+probe "isoline Times Square 10/15-min"                                         \
+  "$BASE/isoline?lat=40.7580&lng=-73.9855&mode=drive&type=time&ranges=600,900&api_key=$KEY" \
+  '.results | length == 2'
+
+probe "optimize_route 4 Manhattan stops"                                       \
+  "$BASE/optimize_route?waypoints=40.7128,-74.006|40.7580,-73.9855|40.7484,-73.9857|40.7061,-74.0087&mode=drive&api_key=$KEY" \
+  '.results.optimal_order | length == 4'
+
+probe "locate Times Square"                                                    \
+  "$BASE/locate?lat=40.7580&lng=-73.9855&mode=drive&api_key=$KEY"              \
+  '.result.snapped_lat != null and .result.edge.name != null'
+
+# POST probes — use the same probe() helper with --data-binary inline.
+ROUTE_MATRIX_BODY='{"sources":[{"lat":40.7128,"lng":-74.006}],"targets":[{"lat":42.36,"lng":-71.05},{"lat":38.9,"lng":-77.03}],"mode":"drive"}'
+RM_RESP=$(curl -sS --max-time "$TIMEOUT" -X POST "$BASE/route-matrix?api_key=$KEY" \
+  -H "Content-Type: application/json" -d "$ROUTE_MATRIX_BODY" 2>/dev/null) || RM_RESP=""
+if echo "$RM_RESP" | jq -e '.results.durations_s[0][0] > 0 and .results.durations_s[0][1] > 0' >/dev/null 2>&1; then
+  RESULTS+="✓ route-matrix NYC->{BOS,DC}\n"
+else
+  RESULTS+="✘ route-matrix: $(echo "$RM_RESP" | head -c 200)\n"
+  FAIL=1
+fi
+
+MAP_MATCH_BODY='{"trace":[{"lat":40.7589,"lng":-73.9851},{"lat":40.7596,"lng":-73.9853},{"lat":40.7603,"lng":-73.9856},{"lat":40.7610,"lng":-73.9858},{"lat":40.7617,"lng":-73.9861},{"lat":40.7624,"lng":-73.9863}],"mode":"drive"}'
+MM_RESP=$(curl -sS --max-time "$TIMEOUT" -X POST "$BASE/map-match?api_key=$KEY" \
+  -H "Content-Type: application/json" -d "$MAP_MATCH_BODY" 2>/dev/null) || MM_RESP=""
+if echo "$MM_RESP" | jq -e '.results.distance_m > 0 and .results.geometry.type == "LineString"' >/dev/null 2>&1; then
+  RESULTS+="✓ map-match 6-pt Broadway trace\n"
+else
+  RESULTS+="✘ map-match: $(echo "$MM_RESP" | head -c 200)\n"
+  FAIL=1
+fi
+
+# Elevation: returns 503 elevation_data_unavailable until DEM tiles are
+# installed (Sprint 2.4 followup). Treat both that and a successful 200
+# with real numbers as ✓ — but ✘ if we get a different unexpected error.
+ELEV_RESP=$(curl -sS --max-time "$TIMEOUT" -w '\nHTTP:%{http_code}' \
+  "$BASE/elevation?points=39.7392,-104.9903|40.7128,-74.006&api_key=$KEY" 2>/dev/null) || ELEV_RESP=""
+ELEV_CODE=$(echo "$ELEV_RESP" | grep -oE 'HTTP:[0-9]+' | tail -1 | cut -d: -f2)
+ELEV_BODY=$(echo "$ELEV_RESP" | sed '$ d')
+if [ "$ELEV_CODE" = "200" ] && echo "$ELEV_BODY" | jq -e '.results[0].elevation_m != null' >/dev/null 2>&1; then
+  RESULTS+="✓ elevation (with DEM tiles installed)\n"
+elif [ "$ELEV_CODE" = "503" ] && echo "$ELEV_BODY" | jq -e '.error.code == "elevation_data_unavailable"' >/dev/null 2>&1; then
+  RESULTS+="✓ elevation (503 elevation_data_unavailable — DEM install pending, expected state)\n"
+else
+  RESULTS+="✘ elevation: HTTP $ELEV_CODE body=$(echo "$ELEV_BODY" | head -c 200)\n"
+  FAIL=1
+fi
+
+# Probe 12: invalid key path — must return invalid_api_key, NOT 404 / cert error.
 # Proves we're hitting the right Laravel proxy, not stray to the wrong host.
 INVALID_BODY=$(curl -sS --max-time "$TIMEOUT" "$BASE/geocode?q=test&api_key=geo_live_INVALIDinvalidINVALIDinvalid" 2>/dev/null) || INVALID_BODY=""
 if echo "$INVALID_BODY" | jq -e '.error.code == "invalid_api_key"' >/dev/null 2>&1; then
