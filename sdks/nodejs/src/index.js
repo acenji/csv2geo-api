@@ -24,6 +24,12 @@ const DEFAULT_BASE_URL = 'https://csv2geo.com/api/v1';
 const DEFAULT_TIMEOUT = 30000;
 const MAX_RETRIES = 3;
 
+// Pull version from package.json so the User-Agent never drifts behind a
+// version bump. Caught 2026-05-13: previous code hard-coded 'csv2geo-node/1.4.0'
+// and stayed that way through 1.5.0/1.6.0/1.7.x/1.8.0 publishes.
+const SDK_VERSION = require('../package.json').version;
+const USER_AGENT = `csv2geo-node/${SDK_VERSION}`;
+
 /**
  * CSV2GEO API Client
  */
@@ -75,7 +81,7 @@ class Client {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
-          'User-Agent': 'csv2geo-node/1.4.0',
+          'User-Agent': USER_AGENT,
         },
         signal: controller.signal,
       };

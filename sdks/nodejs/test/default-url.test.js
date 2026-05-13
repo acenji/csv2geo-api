@@ -41,22 +41,32 @@ test('baseUrl trailing slash is normalized', () => {
 });
 
 test('User-Agent header matches package.json version', () => {
-  // Read the package.json version
-  const pkg = JSON.parse(
-    fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')
-  );
-  // The User-Agent is set inside _request, not on construction. Re-read
-  // the source to extract it at the constant level (no live request).
+  // Reason this test exists: a hardcoded string here drifted from 1.4.0
+  // through 1.5.0/1.6.0/1.7.x/1.8.0 publishes (caught 2026-05-13). Fix
+  // makes UA read from ../package.json at module load. This test asserts
+  // that structure so the bug can't sneak back in.
   const src = fs.readFileSync(
     path.join(__dirname, '..', 'src', 'index.js'),
     'utf8'
   );
-  const m = src.match(/'User-Agent':\s*'csv2geo-node\/(\d+\.\d+\.\d+)'/);
-  assert.ok(m, 'User-Agent header missing or malformed in src/index.js');
-  assert.strictEqual(
-    m[1],
-    pkg.version,
-    `User-Agent version ${m[1]} does not match package.json ${pkg.version}`
+
+  // 1) source MUST read version from ../package.json
+  assert.match(
+    src,
+    /require\(['"]\.\.\/package\.json['"]\)\.version/,
+    'SDK version must be read from ../package.json at module load'
+  );
+
+  // 2) header MUST reference the dynamic constant (not a hardcoded string)
+  assert.match(
+    src,
+    /'User-Agent':\s*USER_AGENT/,
+    "User-Agent header must reference USER_AGENT (not hardcoded string)"
+  );
+  assert.doesNotMatch(
+    src,
+    /'User-Agent':\s*'csv2geo-node\/\d/,
+    'User-Agent must not be hardcoded — use USER_AGENT instead'
   );
 });
 
