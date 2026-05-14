@@ -1141,6 +1141,80 @@ class Client:
             time.sleep(poll_interval)
 
     # ─────────────────────────────────────────────────────────
+    # Marker Icon PNG generator (Sprint 2.6)
+    # ─────────────────────────────────────────────────────────
+
+    def icon(
+        self,
+        icon: str,
+        color: str = None,
+        size: str = "medium",
+        type: str = "awesome",
+        no_white_circle: bool = False,
+        scale_factor: int = 1,
+    ) -> bytes:
+        """Generate a marker pin PNG. GET /icon.
+
+        Args:
+            icon: Icon name from the catalog (call ``icon_catalog()`` to list).
+            color: Pin body color, hex string (e.g. ``"#52b74c"`` or ``"52b74c"``).
+                   Defaults to red.
+            size: ``"small"`` / ``"medium"`` / ``"large"`` / ``"x-large"``.
+            type: Icon family. Only ``"awesome"`` is supported in v1.
+            no_white_circle: If True, glyph sits directly on the pin body.
+            scale_factor: 1, 2, or 4 — retina multiplier.
+
+        Returns:
+            Raw PNG bytes — write to a file or stream as-is.
+
+        Example:
+            png = client.icon("tree", color="#52b74c", size="x-large", scale_factor=2)
+            with open("pin.png", "wb") as f:
+                f.write(png)
+        """
+        params = {
+            "icon": icon,
+            "size": size,
+            "type": type,
+            "scaleFactor": scale_factor,
+        }
+        if color is not None:
+            params["color"] = color
+        if no_white_circle:
+            params["noWhiteCircle"] = "true"
+
+        # icon returns image/png on success — bypass _handle_response so we
+        # don't try to JSON-decode binary data.
+        response = self._session.get(
+            f"{self.base_url}/icon",
+            params=params,
+            timeout=self.timeout,
+        )
+        if 200 <= response.status_code < 300:
+            return response.content
+        # Error path mirrors _handle_response.
+        try:
+            error_data = response.json().get("error", {})
+            code = error_data.get("code", "unknown")
+            message = error_data.get("message", "Unknown error")
+            status = error_data.get("status", response.status_code)
+        except (ValueError, KeyError):
+            code = "unknown"
+            message = response.text or "Unknown error"
+            status = response.status_code
+        if response.status_code == 400:
+            raise InvalidRequestError(message, code=code, status=status)
+        raise APIError(message, code=code, status=status)
+
+    def icon_catalog(self) -> dict:
+        """List available icon names. GET /icon/catalog.
+
+        Returns:
+            dict with keys ``type``, ``version``, ``count``, ``icons`` (list of names).
+        """
+        return self._request("GET", "/icon/catalog")
+
+    # ─────────────────────────────────────────────────────────
 
     def close(self):
         """Close the client session."""

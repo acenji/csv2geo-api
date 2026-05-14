@@ -3101,6 +3101,109 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /icon:
+    get:
+      tags:
+        - Maps
+      summary: Generate a marker pin PNG
+      description: |
+        Returns a styled map pin as PNG. Pure CPU rasterizer; no DB hit,
+        no auth tier gate (bundled into every plan). Output is fully
+        deterministic per URL so the response is cached at the CDN edge
+        with a 1-year `Cache-Control` header.
+
+        v1 supports Font Awesome 6 Free Solid icons from a curated
+        168-icon catalog (`GET /v1/icon/catalog` for the full list).
+        Material Design is a planned follow-up.
+      operationId: icon
+      parameters:
+        - name: icon
+          in: query
+          required: true
+          description: Icon name from the catalog (case-insensitive)
+          schema:
+            type: string
+            example: "tree"
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [awesome]
+            default: awesome
+        - name: color
+          in: query
+          required: false
+          description: Pin body color, hex `#rgb` or `#rrggbb` (leading `#` optional)
+          schema:
+            type: string
+            default: "#ff3b30"
+            example: "#52b74c"
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [small, medium, large, x-large]
+            default: medium
+        - name: noWhiteCircle
+          in: query
+          required: false
+          description: If true, the glyph sits directly on the pin body
+          schema:
+            type: boolean
+            default: false
+        - name: scaleFactor
+          in: query
+          required: false
+          description: Retina multiplier (1, 2, or 4)
+          schema:
+            type: integer
+            enum: [1, 2, 4]
+            default: 1
+      responses:
+        '200':
+          description: PNG image of the marker pin
+          headers:
+            Cache-Control:
+              description: Long-lived immutable cache
+              schema:
+                type: string
+                example: "public, max-age=31536000, immutable"
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request (missing/unknown icon, invalid color/size/scaleFactor, unsupported type)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /icon/catalog:
+    get:
+      tags:
+        - Maps
+      summary: List available marker icon names
+      operationId: iconCatalog
+      responses:
+        '200':
+          description: Catalog of icons available to /v1/icon
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type: {type: string, example: "awesome"}
+                  version: {type: string, example: "Font Awesome 6 Free Solid 6.7.2"}
+                  count: {type: integer, example: 168}
+                  icons:
+                    type: array
+                    items: {type: string}
+                    example: ["baby","bag-shopping","baseball","basket-shopping","basketball"]
+
   /batch:
     post:
       tags:

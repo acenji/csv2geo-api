@@ -407,6 +407,23 @@ export class Client {
   batchCancel(jobId: string): Promise<{ id: string; status: 'cancelled' }>;
 
   /**
+   * Generate a marker pin PNG. Returns raw bytes (image/png).
+   */
+  icon(
+    icon: string,
+    opts?: {
+      color?: string;
+      size?: 'small' | 'medium' | 'large' | 'x-large';
+      type?: 'awesome';
+      noWhiteCircle?: boolean;
+      scaleFactor?: 1 | 2 | 4;
+    }
+  ): Promise<Buffer>;
+
+  /** List available marker icon names. */
+  iconCatalog(): Promise<{ type: string; version: string; count: number; icons: string[] }>;
+
+  /**
    * Poll batchGet() until the job terminates, then return the final body.
    * Convenience wrapper for callers that don't want their own poll loop.
    */

@@ -1054,6 +1054,81 @@ class Client {
    * Throws APIError(code='batch_wait_timeout') if `timeoutMs` elapses
    * before the job terminates.
    */
+  // ─────────────────────────────────────────────────────────
+  // Marker Icon PNG generator (Sprint 2.6)
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Generate a marker pin PNG. GET /icon.
+   *
+   * @param {string} icon - Icon name from the catalog (call iconCatalog() to list)
+   * @param {Object} [opts]
+   * @param {string} [opts.color] - Pin body color, hex string (e.g. "#52b74c"). Defaults to red.
+   * @param {string} [opts.size='medium'] - 'small' / 'medium' / 'large' / 'x-large'
+   * @param {string} [opts.type='awesome'] - Icon family. Only 'awesome' is supported in v1.
+   * @param {boolean} [opts.noWhiteCircle=false] - Glyph on pin body instead of in a white disc
+   * @param {number} [opts.scaleFactor=1] - 1, 2, or 4 (retina multiplier)
+   * @returns {Promise<Buffer>} Raw PNG bytes
+   *
+   * @example
+   *   const png = await client.icon('tree', { color: '#52b74c', size: 'x-large', scaleFactor: 2 });
+   *   fs.writeFileSync('pin.png', png);
+   */
+  async icon(icon, opts = {}) {
+    if (!icon || typeof icon !== 'string') {
+      throw new InvalidRequestError('icon name is required');
+    }
+    const params = new URLSearchParams({
+      icon,
+      size: opts.size || 'medium',
+      type: opts.type || 'awesome',
+      scaleFactor: String(opts.scaleFactor || 1),
+    });
+    if (opts.color) params.set('color', opts.color);
+    if (opts.noWhiteCircle) params.set('noWhiteCircle', 'true');
+
+    // Bypass _request — that path JSON-decodes the body, which corrupts binary PNG.
+    const url = `${this.baseUrl}/icon?${params.toString()}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'User-Agent': USER_AGENT,
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      this.rateLimit = response.headers.get('X-RateLimit-Limit');
+      this.rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
+      if (response.ok) {
+        const arr = await response.arrayBuffer();
+        return Buffer.from(arr);
+      }
+      // Error path: parse JSON envelope.
+      const data = await response.json().catch(() => ({}));
+      const err = data.error || {};
+      if (response.status === 400) {
+        throw new InvalidRequestError(err.message || 'Invalid request', err.code || 'unknown', err.status || 400);
+      }
+      throw new APIError(err.message || 'Unknown error', err.code || 'unknown', err.status || response.status);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      if (e.name === 'AbortError') throw new APIError('Request timed out', 'timeout');
+      if (e instanceof CSV2GEOError) throw e;
+      throw new APIError(String(e), 'connection_error');
+    }
+  }
+
+  /**
+   * List available icon names. GET /icon/catalog.
+   */
+  async iconCatalog() {
+    return this._request('GET', '/icon/catalog');
+  }
+
   async batchWait(jobId, opts = {}) {
     const pollIntervalMs = opts.pollIntervalMs || 2000;
     const timeoutMs = opts.timeoutMs || 600000;

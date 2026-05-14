@@ -134,6 +134,21 @@ else
   FAIL=1
 fi
 
+# Marker icon (Sprint 2.6). Asserts image/png + reasonable size + Cache-Control.
+ICON_HDRS=$(curl -sS --max-time "$TIMEOUT" -D - -o /tmp/smoke-icon.png \
+  "$BASE/icon?icon=tree&color=52b74c&size=x-large&scaleFactor=2&api_key=$KEY" 2>/dev/null) || ICON_HDRS=""
+ICON_CT=$(echo "$ICON_HDRS" | grep -i "^content-type:" | head -1 | tr -d "\r" | awk "{print \$2}")
+ICON_SIZE=$(wc -c < /tmp/smoke-icon.png 2>/dev/null || echo 0)
+ICON_CC=$(echo "$ICON_HDRS" | grep -i "^cache-control:" | head -1 | tr -d "\r")
+ICON_MAGIC=$(head -c 4 /tmp/smoke-icon.png | od -An -t x1 | tr -d " \n" 2>/dev/null)
+if [ "$ICON_CT" = "image/png" ] && [ "$ICON_SIZE" -gt 1000 ] && [ "$ICON_MAGIC" = "89504e47" ]; then
+  RESULTS+="✓ icon (tree pin, content-type=$ICON_CT, $ICON_SIZE bytes, immutable cache: $(echo "$ICON_CC" | grep -q immutable && echo yes || echo no))\n"
+else
+  RESULTS+="✘ icon: ct=$ICON_CT size=$ICON_SIZE magic=$ICON_MAGIC\n"
+  FAIL=1
+fi
+rm -f /tmp/smoke-icon.png
+
 # Batch wrapper (Sprint 2.5). POST /batch -> 202 + id, GET /batch/{id} -> completed.
 # Two-step probe: submit + poll until terminal. Asserts result count and a
 # minimum number of completed inputs.
