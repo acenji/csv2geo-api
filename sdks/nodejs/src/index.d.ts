@@ -431,6 +431,41 @@ export class Client {
     jobId: string,
     opts?: { pollIntervalMs?: number; timeoutMs?: number }
   ): Promise<BatchGetResponse>;
+
+  /**
+   * Build the URL for a single vector tile. Does NOT make a request.
+   * Fetching the tile costs 0.25 credits. For non-MapLibre libraries.
+   */
+  tileURL(z: number, x: number, y: number, source?: string): string;
+
+  /**
+   * Build the URL for a MapLibre style document. Does NOT make a request.
+   * Pass straight to `new maplibregl.Map({ style: ... })`.
+   */
+  styleURL(name?: TileStyleName): string;
+
+  /** List available map styles. GET /tile/styles. Free. */
+  tileStyles(): Promise<TileStylesResponse>;
+
+  /**
+   * Fetch a full MapLibre style document. GET /tile/styles/{name}.json. Free.
+   * Returned style has api_key + customer URL pre-substituted.
+   */
+  tileStyle(name?: TileStyleName): Promise<Record<string, unknown>>;
+}
+
+export type TileStyleName = 'csv2geo-bright' | 'positron' | 'dark-matter';
+
+export interface TileStyleCatalogEntry {
+  name: TileStyleName;
+  display: string;
+  description: string;
+  preview: string;
+  url: string;
+}
+
+export interface TileStylesResponse {
+  styles: TileStyleCatalogEntry[];
 }
 
 export interface BatchCreateResponse {

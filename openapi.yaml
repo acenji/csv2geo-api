@@ -87,6 +87,8 @@ tags:
     description: Valhalla-backed routing — turn-by-turn directions, isolines, matrices, map-matching, TSP optimization, snap-to-road, elevation. 5 transport modes (drive, walk, bike, truck, motorcycle). Pro plan and above.
   - name: IP Geolocation
     description: Submillisecond MaxMind GeoLite2 IP → city/region/county/ASN lookup. Bundled into every plan, including Free.
+  - name: Maps
+    description: Visual map services — vector tiles from the OpenStreetMap planet, ready-made MapLibre GL styles, and marker-pin icon rendering.
   - name: Utilities
     description: Timezone lookup, distance calculations, and system health
 
@@ -3347,6 +3349,137 @@ paths:
                     enum: [cancelled]
         '404':
           description: Job not found or already in a terminal state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tile/{source}/{z}/{x}/{y}.pbf:
+    get:
+      tags:
+        - Maps
+      summary: Fetch a vector map tile
+      description: |
+        Returns a single Mapbox Vector Tile (`.pbf`, gzip-encoded) for the
+        requested `{z}/{x}/{y}` coordinate. Tiles are built from the global
+        OpenStreetMap planet via Planetiler and served from a self-hosted
+        Martin tile server (Seattle primary, Chicago backup).
+
+        **Billing:** 0.25 credits per tile (4 tiles = 1 credit). Free tier
+        3,000 daily credits = 12,000 tiles/day. The response carries a
+        30-day immutable `Cache-Control` header so a CDN absorbs repeat
+        views at no further cost.
+
+        For MapLibre GL JS, you usually don't call this directly — use
+        `GET /v1/tile/styles/{name}.json`, whose style document already
+        references the tile URL. This endpoint is for wiring tiles into a
+        non-MapLibre renderer (OpenLayers, Leaflet vector plugins).
+      operationId: tile
+      parameters:
+        - name: source
+          in: path
+          required: true
+          description: pmtiles archive name. Only `planet` is provisioned.
+          schema:
+            type: string
+            default: planet
+            example: planet
+        - name: z
+          in: path
+          required: true
+          description: Zoom level (0-14)
+          schema: {type: integer, minimum: 0, maximum: 14, example: 10}
+        - name: x
+          in: path
+          required: true
+          description: Tile column
+          schema: {type: integer, minimum: 0, example: 301}
+        - name: y
+          in: path
+          required: true
+          description: Tile row
+          schema: {type: integer, minimum: 0, example: 384}
+      responses:
+        '200':
+          description: Mapbox Vector Tile (protobuf, gzip-encoded)
+          headers:
+            Cache-Control:
+              schema: {type: string, example: "public, max-age=2592000, immutable"}
+          content:
+            application/x-protobuf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid coordinates or source name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tile/styles:
+    get:
+      tags:
+        - Maps
+      summary: List available map styles
+      description: |
+        Returns the catalog of MapLibre GL styles CSV2GEO publishes.
+        Free — no credits charged. Three styles ship today: `csv2geo-bright`
+        (general-purpose, brand-tuned), `positron` (pale, for data overlays),
+        `dark-matter` (dark, for night-mode dashboards).
+      operationId: tileStyles
+      responses:
+        '200':
+          description: Style catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  styles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name: {type: string, example: "csv2geo-bright"}
+                        display: {type: string, example: "CSV2GEO Bright"}
+                        description: {type: string}
+                        preview: {type: string, format: uri}
+                        url: {type: string, format: uri}
+
+  /tile/styles/{name}.json:
+    get:
+      tags:
+        - Maps
+      summary: Fetch a MapLibre GL style document
+      description: |
+        Returns a complete MapLibre GL style (spec version 8) for the named
+        style, with this request's API key and the customer URL already
+        substituted into the tile / sprite / glyph references. Free — no
+        credits charged.
+
+        Hand the URL of this endpoint straight to MapLibre GL JS:
+        `new maplibregl.Map({ style: "https://csv2geo.com/api/v1/tile/styles/csv2geo-bright.json?api_key=YOUR_KEY" })`.
+      operationId: tileStyle
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: Style name
+          schema:
+            type: string
+            enum: [csv2geo-bright, positron, dark-matter]
+            example: csv2geo-bright
+      responses:
+        '200':
+          description: MapLibre GL style document (spec version 8)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: A MapLibre GL JS style object (version, sources, layers, sprite, glyphs).
+        '404':
+          description: Unknown style name
           content:
             application/json:
               schema:

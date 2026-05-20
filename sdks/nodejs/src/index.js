@@ -1148,6 +1148,59 @@ class Client {
       await this._sleep(pollIntervalMs);
     }
   }
+
+  // ───────────────────────── Vector map tiles ─────────────────────────
+  // Sprint 3.0 — vector tile serving. The tile DATA endpoint costs 0.25
+  // credits/tile; the style + asset endpoints are free. Tiles are VECTOR
+  // (Mapbox Vector Tile / .pbf) — there is no retina/@2x variant.
+
+  /**
+   * Build the URL for a single vector tile. Does NOT make a request.
+   * For wiring tiles into a non-MapLibre library (Leaflet, OpenLayers).
+   * MapLibre GL JS users want styleURL() instead.
+   * @param {number} z - zoom 0-14
+   * @param {number} x - tile column
+   * @param {number} y - tile row
+   * @param {string} [source='planet'] - pmtiles archive name
+   * @returns {string} absolute tile URL with api_key (0.25 credits/fetch)
+   */
+  tileURL(z, x, y, source = 'planet') {
+    for (const [name, val] of [['z', z], ['x', x], ['y', y]]) {
+      if (!Number.isInteger(val) || val < 0) {
+        throw new InvalidRequestError(`${name} must be a non-negative integer`);
+      }
+    }
+    return `${this.baseUrl}/tile/${source}/${z}/${x}/${y}.pbf?api_key=${this.apiKey}`;
+  }
+
+  /**
+   * Build the URL for a MapLibre style document. Does NOT make a request.
+   * Hand it straight to MapLibre GL JS:
+   *   new maplibregl.Map({ style: client.styleURL('dark-matter') })
+   * @param {string} [name='csv2geo-bright'] - csv2geo-bright | positron | dark-matter
+   * @returns {string} absolute style URL with api_key
+   */
+  styleURL(name = 'csv2geo-bright') {
+    return `${this.baseUrl}/tile/styles/${name}.json?api_key=${this.apiKey}`;
+  }
+
+  /**
+   * List available map styles. GET /tile/styles. Free.
+   * @returns {Promise<object>} { styles: [{ name, display, description, preview, url }] }
+   */
+  async tileStyles() {
+    return this._request('GET', '/tile/styles');
+  }
+
+  /**
+   * Fetch a full MapLibre style document. GET /tile/styles/{name}.json. Free.
+   * The returned style has the api_key and customer URL already substituted.
+   * @param {string} [name='csv2geo-bright'] - csv2geo-bright | positron | dark-matter
+   * @returns {Promise<object>} the MapLibre GL style document
+   */
+  async tileStyle(name = 'csv2geo-bright') {
+    return this._request('GET', `/tile/styles/${encodeURIComponent(name)}.json`);
+  }
 }
 
 module.exports = {

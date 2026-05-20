@@ -2,6 +2,21 @@
 
 All notable changes to the Node SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to npm as [`csv2geo-sdk`](https://www.npmjs.com/package/csv2geo-sdk).
 
+## [1.11.0] — 2026-05-20 — Vector map tiles (Sprint 3.0)
+
+### Added — 4 vector tile methods
+
+CSV2GEO now serves vector map tiles and ready-made MapLibre GL styles.
+
+- `tileURL(z, x, y, source = 'planet')` — build the URL for a single vector tile (`.pbf`). Pure URL builder, makes no HTTP call. For wiring tiles into Leaflet/OpenLayers; MapLibre users want `styleURL()` instead. Fetching a tile costs 0.25 credits.
+- `styleURL(name = 'csv2geo-bright')` — build the URL for a MapLibre style document; pass straight to `new maplibregl.Map({ style: ... })`. Pure URL builder. Free.
+- `tileStyles()` — `GET /tile/styles`; lists the 3 available styles (`csv2geo-bright`, `positron`, `dark-matter`) with descriptions and preview URLs. Free.
+- `tileStyle(name = 'csv2geo-bright')` — `GET /tile/styles/{name}.json`; fetches a full MapLibre style document with the api_key and customer URL pre-substituted. Free.
+
+New exported TypeScript types: `TileStyleName`, `TileStyleCatalogEntry`, `TileStylesResponse`.
+
+Tiles are **vector** (Mapbox Vector Tile / `.pbf`) — there is no retina/`@2x` variant; pixel density is a client-side render concern.
+
 ## [1.8.1] — 2026-05-13 — UA-drift hotfix
 
 ### Fixed

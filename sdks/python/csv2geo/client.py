@@ -1214,6 +1214,73 @@ class Client:
         """
         return self._request("GET", "/icon/catalog")
 
+    # ───────────────────────── Vector map tiles ─────────────────────────
+    # Sprint 3.0 — vector tile serving. The tile DATA endpoint costs 0.25
+    # credits/tile; the style + asset endpoints are free. Note: tiles are
+    # VECTOR (Mapbox Vector Tile / .pbf) — there is no retina/@2x variant
+    # the way raster tiles have; pixel density is a client-render concern.
+
+    def tile_url(self, z: int, x: int, y: int, source: str = "planet") -> str:
+        """Build the URL for a single vector tile. Does NOT make a request.
+
+        Useful for wiring tiles into a non-MapLibre map library (Leaflet
+        with a vector plugin, OpenLayers, etc.). For MapLibre GL JS, prefer
+        ``style_url()`` — the style document already references tiles.
+
+        Args:
+            z, x, y: Tile coordinates (z = zoom 0-14, x/y = column/row).
+            source: pmtiles archive name. Only ``"planet"`` is provisioned.
+
+        Returns:
+            Absolute tile URL with the api_key query parameter. Fetching it
+            costs 0.25 credits per tile.
+
+        Example:
+            url = client.tile_url(10, 301, 384)
+            # https://csv2geo.com/api/v1/tile/planet/10/301/384.pbf?api_key=...
+        """
+        for name, val in (("z", z), ("x", x), ("y", y)):
+            if not isinstance(val, int) or val < 0:
+                raise ValueError(f"{name} must be a non-negative integer")
+        return f"{self.base_url}/tile/{source}/{z}/{x}/{y}.pbf?api_key={self.api_key}"
+
+    def style_url(self, name: str = "csv2geo-bright") -> str:
+        """Build the URL for a MapLibre style document. Does NOT make a request.
+
+        Hand the returned string straight to MapLibre GL JS:
+            ``new maplibregl.Map({ style: client.style_url("dark-matter") })``
+
+        Args:
+            name: ``"csv2geo-bright"`` / ``"positron"`` / ``"dark-matter"``.
+
+        Returns:
+            Absolute style URL with the api_key query parameter.
+        """
+        return f"{self.base_url}/tile/styles/{name}.json?api_key={self.api_key}"
+
+    def tile_styles(self) -> dict:
+        """List available map styles. GET /tile/styles. Free.
+
+        Returns:
+            dict with key ``styles`` — a list of dicts, each with
+            ``name``, ``display``, ``description``, ``preview``, ``url``.
+        """
+        return self._request("GET", "/tile/styles")
+
+    def tile_style(self, name: str = "csv2geo-bright") -> dict:
+        """Fetch a full MapLibre style document. GET /tile/styles/{name}.json. Free.
+
+        The returned style has the api_key and customer URL already
+        substituted into its tile / sprite / glyph references.
+
+        Args:
+            name: ``"csv2geo-bright"`` / ``"positron"`` / ``"dark-matter"``.
+
+        Returns:
+            The MapLibre GL style document as a dict.
+        """
+        return self._request("GET", f"/tile/styles/{name}.json")
+
     # ─────────────────────────────────────────────────────────
 
     def close(self):
