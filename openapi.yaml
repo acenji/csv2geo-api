@@ -3424,9 +3424,9 @@ paths:
       summary: List available map styles
       description: |
         Returns the catalog of MapLibre GL styles CSV2GEO publishes.
-        Free — no credits charged. Three styles ship today: `csv2geo-bright`
-        (general-purpose, brand-tuned), `positron` (pale, for data overlays),
-        `dark-matter` (dark, for night-mode dashboards).
+        Free — no credits charged. Seven styles ship today: `csv2geo-bright`,
+        `maptiler-basic`, `positron`, `fiord-color`, `osm-liberty`, `toner`,
+        and `dark-matter`.
       operationId: tileStyles
       responses:
         '200':
@@ -3468,7 +3468,7 @@ paths:
           description: Style name
           schema:
             type: string
-            enum: [csv2geo-bright, positron, dark-matter]
+            enum: [csv2geo-bright, maptiler-basic, positron, fiord-color, osm-liberty, toner, dark-matter]
             example: csv2geo-bright
       responses:
         '200':
