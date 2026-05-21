@@ -452,9 +452,71 @@ export class Client {
    * Returned style has api_key + customer URL pre-substituted.
    */
   tileStyle(name?: TileStyleName): Promise<Record<string, unknown>>;
+
+  /**
+   * Build a static map image URL. Does NOT make a request.
+   * Drop the result straight into an HTML <img src>; each fetch renders
+   * the image server-side and costs 1 credit.
+   */
+  staticMapURL(opts?: StaticMapOptions): string;
+
+  /**
+   * Render a static map and return the raw image bytes. Costs 1 credit.
+   * Same options as staticMapURL(); use this to save/process the image.
+   */
+  staticMap(opts?: StaticMapOptions): Promise<Buffer>;
 }
 
-export type TileStyleName = 'csv2geo-bright' | 'positron' | 'dark-matter';
+export type TileStyleName =
+  | 'csv2geo-bright'
+  | 'csv2geo-dark'
+  | 'csv2geo-slate'
+  | 'maptiler-basic'
+  | 'positron'
+  | 'fiord-color'
+  | 'osm-liberty'
+  | 'toner'
+  | 'dark-matter';
+
+/** A static map marker: 'lat,lng[,color]' string or a [lat, lng(, color)] tuple. */
+export type StaticMapMarker =
+  | string
+  | [number, number]
+  | [number, number, string];
+
+/** A static map polyline overlay. */
+export interface StaticMapPath {
+  /** Ordered [lat, lng] points — at least 2. */
+  points: Array<[number, number]>;
+  /** Stroke color, hex (e.g. '0969da'). */
+  color?: string;
+  /** Stroke width 1-20. */
+  width?: number;
+  /** Fill color for a closed polygon, hex. */
+  fill?: string;
+}
+
+/** Options for staticMapURL() / staticMap(). */
+export interface StaticMapOptions {
+  /** [lat, lng] center. Omit (with zoom) to auto-fit around overlays. */
+  center?: [number, number];
+  /** Zoom 0-22. Required when center is given. */
+  zoom?: number;
+  /** One of the 9 map styles. Default 'csv2geo-bright'. */
+  style?: TileStyleName;
+  /** Image width in pixels, 1-1280. Default 600. */
+  width?: number;
+  /** Image height in pixels, 1-1280. Default 400. */
+  height?: number;
+  /** Image format. WebP is ~60% smaller than PNG. Default 'png'. */
+  format?: 'png' | 'jpg' | 'jpeg' | 'webp';
+  /** 1 standard or 2 retina (@2x). Default 1. */
+  scale?: 1 | 2;
+  /** Marker overlays. */
+  markers?: StaticMapMarker[];
+  /** A single polyline overlay. */
+  path?: string | StaticMapPath;
+}
 
 export interface TileStyleCatalogEntry {
   name: TileStyleName;

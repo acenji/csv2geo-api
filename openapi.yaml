@@ -3485,6 +3485,99 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /staticmap:
+    get:
+      tags:
+        - Maps
+      summary: Render a static map image
+      description: |
+        Renders a single map image (PNG/JPEG/WebP) server-side from the
+        global OpenStreetMap planet — no client-side map library needed.
+        Drop the URL straight into an HTML `<img src>`, an email, a PDF or
+        a chat message.
+
+        **Billing:** 1 credit per rendered image, regardless of size,
+        format or overlays. A 30-day immutable `Cache-Control` header lets
+        a CDN absorb repeat views at no further cost.
+
+        **Viewport:** supply `center` + `zoom` for a fixed view, or omit
+        both and supply at least one `markers`/`path` overlay to auto-fit
+        the viewport around it.
+
+        Coordinates are `lat,lng` throughout (matching `/geocode` output).
+      operationId: staticMap
+      parameters:
+        - name: style
+          in: query
+          description: Map style — one of the nine published styles.
+          schema:
+            type: string
+            enum: [csv2geo-bright, csv2geo-dark, csv2geo-slate, maptiler-basic, positron, fiord-color, osm-liberty, toner, dark-matter]
+            default: csv2geo-bright
+        - name: center
+          in: query
+          description: Map center as `lat,lng`. Required unless overlays are supplied for auto-fit.
+          schema: {type: string, example: "40.7484,-73.9857"}
+        - name: zoom
+          in: query
+          description: Zoom level 0-22. Required when `center` is supplied.
+          schema: {type: number, minimum: 0, maximum: 22, example: 14}
+        - name: width
+          in: query
+          description: Image width in pixels.
+          schema: {type: integer, minimum: 1, maximum: 1280, default: 600}
+        - name: height
+          in: query
+          description: Image height in pixels.
+          schema: {type: integer, minimum: 1, maximum: 1280, default: 400}
+        - name: format
+          in: query
+          description: Image format. WebP is ~60% smaller than PNG.
+          schema:
+            type: string
+            enum: [png, jpg, webp]
+            default: png
+        - name: scale
+          in: query
+          description: "1 = standard, 2 = retina (@2x)."
+          schema:
+            type: integer
+            enum: [1, 2]
+            default: 1
+        - name: markers
+          in: query
+          description: |
+            Marker overlays — a pipe-separated list, each marker `lat,lng`
+            or `lat,lng,color`. Colors: red (default), blue, green, orange,
+            purple, black, gray. Up to 50 markers.
+          schema: {type: string, example: "40.7484,-73.9857,red|40.7549,-73.9840,blue"}
+        - name: path
+          in: query
+          description: |
+            A polyline overlay — pipe-separated. `lat,lng` tokens are the
+            ordered points (≥2); `color:HEX`, `width:N` (1-20) and
+            `fill:HEX` are optional style tokens.
+          schema: {type: string, example: "color:0969da|width:4|40.7484,-73.9857|40.7549,-73.9840"}
+      responses:
+        '200':
+          description: Rendered map image
+          headers:
+            Cache-Control:
+              schema: {type: string, example: "public, max-age=2592000, immutable"}
+          content:
+            image/png:
+              schema: {type: string, format: binary}
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/webp:
+              schema: {type: string, format: binary}
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     ApiKeyQuery:

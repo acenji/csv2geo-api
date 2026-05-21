@@ -1201,6 +1201,154 @@ class Client {
   async tileStyle(name = 'csv2geo-bright') {
     return this._request('GET', `/tile/styles/${encodeURIComponent(name)}.json`);
   }
+
+  // ───────────────────────── Static maps ──────────────────────────
+  // Sprint 3.1 — server-side rendered map images (PNG/JPEG/WebP). A
+  // render costs 1 credit. staticMapURL() only builds the URL — drop it
+  // into an <img> tag; staticMap() builds the URL and fetches the bytes.
+
+  /** Normalize one marker to the 'lat,lng[,color]' wire form. */
+  static _staticMapMarker(m) {
+    if (typeof m === 'string') return m;
+    if (Array.isArray(m) && (m.length === 2 || m.length === 3)) return m.join(',');
+    throw new InvalidRequestError(
+      "each marker must be 'lat,lng[,color]' or a [lat, lng[, color]] array",
+    );
+  }
+
+  /** Normalize a path (string or object) to the pipe-delimited wire form. */
+  static _staticMapPath(p) {
+    if (typeof p === 'string') return p;
+    if (p && typeof p === 'object') {
+      const segs = [];
+      if (p.color) segs.push(`color:${p.color}`);
+      if (p.width) segs.push(`width:${p.width}`);
+      if (p.fill) segs.push(`fill:${p.fill}`);
+      const pts = p.points || [];
+      if (pts.length < 2) throw new InvalidRequestError('path needs at least 2 points');
+      for (const pt of pts) {
+        if (!Array.isArray(pt) || pt.length !== 2) {
+          throw new InvalidRequestError('each path point must be a [lat, lng] pair');
+        }
+        segs.push(`${pt[0]},${pt[1]}`);
+      }
+      return segs.join('|');
+    }
+    throw new InvalidRequestError("path must be a string or an object with a 'points' array");
+  }
+
+  /**
+   * Build a static map image URL. Does NOT make a request.
+   * Drop the returned string into an HTML <img src> — each fetch renders
+   * the image server-side and costs 1 credit.
+   *
+   * @param {Object} [opts]
+   * @param {[number,number]} [opts.center] - [lat, lng] center. Omit (with zoom) to auto-fit.
+   * @param {number} [opts.zoom] - zoom 0-22, required when center is given
+   * @param {string} [opts.style='csv2geo-bright'] - one of 9 styles
+   * @param {number} [opts.width=600] - image width px (1-1280)
+   * @param {number} [opts.height=400] - image height px (1-1280)
+   * @param {string} [opts.format='png'] - 'png' | 'jpg' | 'webp' (WebP ~60% smaller)
+   * @param {number} [opts.scale=1] - 1 standard or 2 retina (@2x)
+   * @param {Array} [opts.markers] - markers, each [lat,lng] / [lat,lng,color] / 'lat,lng[,color]'
+   * @param {string|Object} [opts.path] - polyline string, or { points:[[lat,lng],...], color, width, fill }
+   * @returns {string} absolute static map URL with api_key (1 credit/fetch)
+   *
+   * @example
+   *   const url = client.staticMapURL({ center: [40.7484, -73.9857], zoom: 14, format: 'webp' });
+   *   // <img src={url}>
+   */
+  staticMapURL(opts = {}) {
+    const styles = [
+      'csv2geo-bright', 'csv2geo-dark', 'csv2geo-slate', 'maptiler-basic',
+      'positron', 'fiord-color', 'osm-liberty', 'toner', 'dark-matter',
+    ];
+    const style = opts.style || 'csv2geo-bright';
+    if (!styles.includes(style)) {
+      throw new InvalidRequestError(`style must be one of: ${styles.join(', ')}`);
+    }
+    const format = opts.format || 'png';
+    if (!['png', 'jpg', 'jpeg', 'webp'].includes(format)) {
+      throw new InvalidRequestError('format must be png, jpg or webp');
+    }
+    const scale = opts.scale || 1;
+    if (scale !== 1 && scale !== 2) {
+      throw new InvalidRequestError('scale must be 1 or 2');
+    }
+
+    const params = new URLSearchParams({
+      style,
+      width: String(opts.width || 600),
+      height: String(opts.height || 400),
+      format,
+      scale: String(scale),
+      api_key: this.apiKey,
+    });
+    if (opts.center !== undefined) {
+      if (!Array.isArray(opts.center) || opts.center.length !== 2) {
+        throw new InvalidRequestError('center must be a [lat, lng] pair');
+      }
+      params.set('center', `${opts.center[0]},${opts.center[1]}`);
+    }
+    if (opts.zoom !== undefined) params.set('zoom', String(opts.zoom));
+    if (opts.markers && opts.markers.length) {
+      params.set('markers', opts.markers.map((m) => Client._staticMapMarker(m)).join('|'));
+    }
+    if (opts.path !== undefined) {
+      params.set('path', Client._staticMapPath(opts.path));
+    }
+
+    return `${this.baseUrl}/staticmap?${params.toString()}`;
+  }
+
+  /**
+   * Render a static map and return the raw image bytes. Costs 1 credit.
+   * Same options as staticMapURL(). Use this to save or process the
+   * image; use staticMapURL() when you just need a URL to embed.
+   *
+   * @param {Object} [opts] - see staticMapURL()
+   * @returns {Promise<Buffer>} raw image bytes (PNG/JPEG/WebP per format)
+   *
+   * @example
+   *   const png = await client.staticMap({ center: [40.7484, -73.9857], zoom: 14 });
+   *   fs.writeFileSync('map.png', png);
+   */
+  async staticMap(opts = {}) {
+    const url = this.staticMapURL(opts);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'User-Agent': USER_AGENT,
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      this.rateLimit = response.headers.get('X-RateLimit-Limit');
+      this.rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
+      if (response.ok) {
+        const arr = await response.arrayBuffer();
+        return Buffer.from(arr);
+      }
+      const data = await response.json().catch(() => ({}));
+      const err = data.error || {};
+      if (response.status === 400) {
+        throw new InvalidRequestError(err.message || 'Invalid request', err.code || 'unknown', err.status || 400);
+      }
+      if (response.status === 401) {
+        throw new AuthenticationError(err.message || 'Unauthorized', err.code || 'unknown', err.status || 401);
+      }
+      throw new APIError(err.message || 'Unknown error', err.code || 'unknown', err.status || response.status);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      if (e.name === 'AbortError') throw new APIError('Request timed out', 'timeout');
+      if (e instanceof CSV2GEOError) throw e;
+      throw new APIError(String(e), 'connection_error');
+    }
+  }
 }
 
 module.exports = {

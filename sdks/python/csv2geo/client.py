@@ -1281,6 +1281,152 @@ class Client:
         """
         return self._request("GET", f"/tile/styles/{name}.json")
 
+    # ───────────────────────── Static maps ──────────────────────────
+    # Sprint 3.1 — server-side rendered map images (PNG/JPEG/WebP). A
+    # render costs 1 credit. static_map_url() only builds the URL — drop
+    # it straight into an <img> tag; static_map() builds the URL and
+    # fetches the image bytes.
+
+    STATIC_MAP_STYLES = (
+        "csv2geo-bright", "csv2geo-dark", "csv2geo-slate", "maptiler-basic",
+        "positron", "fiord-color", "osm-liberty", "toner", "dark-matter",
+    )
+
+    @staticmethod
+    def _static_map_marker(m) -> str:
+        """Normalize one marker to the 'lat,lng[,color]' wire form."""
+        if isinstance(m, str):
+            return m
+        if isinstance(m, (list, tuple)) and len(m) in (2, 3):
+            return ",".join(str(x) for x in m)
+        raise ValueError(
+            "each marker must be 'lat,lng[,color]' or a (lat, lng[, color]) tuple"
+        )
+
+    @staticmethod
+    def _static_map_path(p) -> str:
+        """Normalize a path (string or dict) to the pipe-delimited wire form."""
+        if isinstance(p, str):
+            return p
+        if isinstance(p, dict):
+            segs = []
+            if p.get("color"):
+                segs.append(f"color:{p['color']}")
+            if p.get("width"):
+                segs.append(f"width:{p['width']}")
+            if p.get("fill"):
+                segs.append(f"fill:{p['fill']}")
+            pts = p.get("points") or []
+            if len(pts) < 2:
+                raise ValueError("path needs at least 2 points")
+            for pt in pts:
+                if not (isinstance(pt, (list, tuple)) and len(pt) == 2):
+                    raise ValueError("each path point must be a (lat, lng) pair")
+                segs.append(f"{pt[0]},{pt[1]}")
+            return "|".join(segs)
+        raise ValueError("path must be a string or a dict with a 'points' list")
+
+    def static_map_url(self, center=None, zoom=None, *, style="csv2geo-bright",
+                       width=600, height=400, fmt="png", scale=1,
+                       markers=None, path=None) -> str:
+        """Build a static map image URL. Does NOT make a request.
+
+        Drop the returned string straight into an HTML ``<img src>`` —
+        each fetch renders the image server-side and costs 1 credit.
+
+        Args:
+            center: ``(lat, lng)`` map center. Omit (with ``zoom``) to
+                    auto-fit the viewport around the markers/path.
+            zoom: Zoom level 0-22. Required when ``center`` is given.
+            style: One of ``Client.STATIC_MAP_STYLES`` (9 styles).
+            width, height: Image size in pixels (1-1280).
+            fmt: ``"png"`` / ``"jpg"`` / ``"webp"``. WebP is ~60% smaller.
+            scale: ``1`` standard or ``2`` retina (@2x).
+            markers: Iterable of markers, each a ``(lat, lng)`` /
+                     ``(lat, lng, color)`` tuple or a ``"lat,lng[,color]"``
+                     string. Colors: red, blue, green, orange, purple,
+                     black, gray.
+            path: A polyline — either a pre-formatted string, or a dict
+                  ``{"points": [(lat,lng), ...], "color": "0969da",
+                  "width": 4, "fill": "..."}``.
+
+        Returns:
+            Absolute static map URL with the api_key query parameter.
+
+        Example:
+            url = client.static_map_url(
+                (40.7484, -73.9857), 14,
+                markers=[(40.7484, -73.9857, "red")],
+                fmt="webp",
+            )
+            # <img src="{url}">
+        """
+        from urllib.parse import urlencode
+
+        if style not in self.STATIC_MAP_STYLES:
+            raise ValueError(
+                f"style must be one of: {', '.join(self.STATIC_MAP_STYLES)}"
+            )
+        if fmt not in ("png", "jpg", "jpeg", "webp"):
+            raise ValueError("fmt must be png, jpg or webp")
+        if scale not in (1, 2):
+            raise ValueError("scale must be 1 or 2")
+
+        params = {
+            "style": style,
+            "width": width,
+            "height": height,
+            "format": fmt,
+            "scale": scale,
+            "api_key": self.api_key,
+        }
+        if center is not None:
+            if not (isinstance(center, (list, tuple)) and len(center) == 2):
+                raise ValueError("center must be a (lat, lng) pair")
+            params["center"] = f"{center[0]},{center[1]}"
+        if zoom is not None:
+            params["zoom"] = zoom
+        if markers:
+            params["markers"] = "|".join(self._static_map_marker(m) for m in markers)
+        if path is not None:
+            params["path"] = self._static_map_path(path)
+
+        return f"{self.base_url}/staticmap?{urlencode(params)}"
+
+    def static_map(self, center=None, zoom=None, **kwargs) -> bytes:
+        """Render a static map and return the raw image bytes. Costs 1 credit.
+
+        Accepts the same arguments as :meth:`static_map_url`. Use this when
+        you want to save or process the image; use ``static_map_url()`` when
+        you just need a URL to embed.
+
+        Returns:
+            Raw image bytes (PNG/JPEG/WebP per ``fmt``).
+
+        Example:
+            png = client.static_map((40.7484, -73.9857), 14)
+            with open("map.png", "wb") as f:
+                f.write(png)
+        """
+        url = self.static_map_url(center, zoom, **kwargs)
+        response = self._session.get(url, timeout=self.timeout)
+        if 200 <= response.status_code < 300:
+            return response.content
+        try:
+            error_data = response.json().get("error", {})
+            code = error_data.get("code", "unknown")
+            message = error_data.get("message", "Unknown error")
+            status = error_data.get("status", response.status_code)
+        except (ValueError, KeyError):
+            code = "unknown"
+            message = response.text or "Unknown error"
+            status = response.status_code
+        if response.status_code == 400:
+            raise InvalidRequestError(message, code=code, status=status)
+        if response.status_code == 401:
+            raise AuthenticationError(message, code=code, status=status)
+        raise APIError(message, code=code, status=status)
+
     # ─────────────────────────────────────────────────────────
 
     def close(self):

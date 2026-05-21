@@ -2,6 +2,21 @@
 
 All notable changes to the Python SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to PyPI as [`csv2geo`](https://pypi.org/project/csv2geo/).
 
+## [1.12.0] — 2026-05-21 — Static map images (Sprint 3.1)
+
+### Added — 2 static map methods
+
+CSV2GEO now renders static map images server-side (PNG/JPEG/WebP).
+
+- `static_map_url(center=None, zoom=None, *, style, width, height, fmt, scale, markers, path)` — build a static map URL. Pure URL builder, makes no HTTP call. Drop the returned string into an HTML `<img src>`; each fetch renders the image and costs 1 credit.
+- `static_map(center=None, zoom=None, **kwargs)` — same arguments as `static_map_url()`, but fetches and returns the raw image bytes (for saving/processing). Costs 1 credit.
+
+Highlights:
+- **9 styles** (`Client.STATIC_MAP_STYLES`), sizes up to 1280×1280, `scale=1|2` retina, `fmt` png/jpg/webp — WebP is ~60% smaller than PNG.
+- **markers** — list of `(lat, lng)` / `(lat, lng, color)` tuples or `"lat,lng[,color]"` strings; 7-color pin palette.
+- **path** — a polyline as a pre-formatted string or a dict `{"points": [...], "color", "width", "fill"}`.
+- **auto-fit** — omit `center`/`zoom` and the viewport fits the markers/path.
+
 ## [1.11.0] — 2026-05-20 — Vector map tiles (Sprint 3.0)
 
 ### Added — 4 vector tile methods
