@@ -149,6 +149,22 @@ else
 fi
 rm -f /tmp/smoke-icon.png
 
+# Static map (Sprint 3.1). Asserts a real PNG image + immutable cache —
+# proves the Laravel proxy → HAProxy :8087 → tileserver-gl render path.
+SMAP_HDRS=$(curl -sS --max-time "$TIMEOUT" -D - -o /tmp/smoke-staticmap.png \
+  "$BASE/staticmap?style=csv2geo-bright&center=40.7484,-73.9857&zoom=13&width=400&height=300&markers=40.7484,-73.9857,red&api_key=$KEY" 2>/dev/null) || SMAP_HDRS=""
+SMAP_CT=$(echo "$SMAP_HDRS" | grep -i "^content-type:" | head -1 | tr -d "\r" | awk "{print \$2}")
+SMAP_SIZE=$(wc -c < /tmp/smoke-staticmap.png 2>/dev/null || echo 0)
+SMAP_CC=$(echo "$SMAP_HDRS" | grep -i "^cache-control:" | head -1 | tr -d "\r")
+SMAP_MAGIC=$(head -c 4 /tmp/smoke-staticmap.png | od -An -t x1 | tr -d " \n" 2>/dev/null)
+if [ "$SMAP_CT" = "image/png" ] && [ "$SMAP_SIZE" -gt 2000 ] && [ "$SMAP_MAGIC" = "89504e47" ]; then
+  RESULTS+="✓ staticmap (Manhattan + marker, content-type=$SMAP_CT, $SMAP_SIZE bytes, immutable cache: $(echo "$SMAP_CC" | grep -q immutable && echo yes || echo no))\n"
+else
+  RESULTS+="✘ staticmap: ct=$SMAP_CT size=$SMAP_SIZE magic=$SMAP_MAGIC\n"
+  FAIL=1
+fi
+rm -f /tmp/smoke-staticmap.png
+
 # Batch wrapper (Sprint 2.5). POST /batch -> 202 + id, GET /batch/{id} -> completed.
 # Two-step probe: submit + poll until terminal. Asserts result count and a
 # minimum number of completed inputs.
