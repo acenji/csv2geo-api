@@ -1220,12 +1220,50 @@ class Client {
   // render costs 1 credit. staticMapURL() only builds the URL — drop it
   // into an <img> tag; staticMap() builds the URL and fetches the bytes.
 
-  /** Normalize one marker to the 'lat,lng[,color]' wire form. */
+  /**
+   * Normalize one marker to its wire form.
+   *
+   * Accepted shapes:
+   *   - string: 'lat,lng' | 'lat,lng,color' | 'lat,lng,color,label'
+   *   - tuple : [lat, lng] | [lat, lng, color] | [lat, lng, color, label]
+   *   - object: { lat, lng, color?, label? }  ← preferred; emits keyed
+   *     form when label or hex color is present, positional otherwise.
+   *
+   * Sprint staticmap-pin-labels 2026-05-23 — added `label` (1-4 alnum
+   * chars). Pin renders the label inside the head, used for numbered
+   * route-stop pins. Hex colors (`#ff8800`) are accepted in object form
+   * only — positional/tuple shapes stay named-palette to keep parsing
+   * unambiguous on the wire.
+   */
   static _staticMapMarker(m) {
     if (typeof m === 'string') return m;
-    if (Array.isArray(m) && (m.length === 2 || m.length === 3)) return m.join(',');
+    if (Array.isArray(m)) {
+      if (m.length >= 2 && m.length <= 4) return m.join(',');
+      throw new InvalidRequestError(
+        "marker tuple must be [lat, lng], [lat, lng, color], or [lat, lng, color, label]",
+      );
+    }
+    if (m && typeof m === 'object') {
+      if (typeof m.lat !== 'number' || typeof m.lng !== 'number') {
+        throw new InvalidRequestError("marker object must have numeric lat and lng");
+      }
+      const isHexColor = typeof m.color === 'string' && /^#/.test(m.color);
+      // Use keyed form when hex color or a label is present — keyed is
+      // the only positional-unambiguous form the server accepts for hex.
+      if (isHexColor || m.label != null) {
+        const parts = [String(m.lat), String(m.lng)];
+        if (m.color != null) parts.push(`color:${m.color}`);
+        if (m.label != null) parts.push(`label:${m.label}`);
+        return parts.join(',');
+      }
+      // Plain positional form for back-compat with older SDK versions
+      // that didn't know about keyed syntax.
+      const parts = [String(m.lat), String(m.lng)];
+      if (m.color != null) parts.push(String(m.color));
+      return parts.join(',');
+    }
     throw new InvalidRequestError(
-      "each marker must be 'lat,lng[,color]' or a [lat, lng[, color]] array",
+      "each marker must be a string 'lat,lng[,color[,label]]', a tuple, or {lat, lng, color?, label?}",
     );
   }
 

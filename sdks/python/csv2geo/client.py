@@ -1316,13 +1316,53 @@ class Client:
 
     @staticmethod
     def _static_map_marker(m) -> str:
-        """Normalize one marker to the 'lat,lng[,color]' wire form."""
+        """Normalize one marker to its wire form.
+
+        Accepted shapes:
+            - str:   'lat,lng' | 'lat,lng,color' | 'lat,lng,color,label'
+            - tuple: (lat, lng) | (lat, lng, color) | (lat, lng, color, label)
+            - dict:  {"lat": ..., "lng": ..., "color"?: ..., "label"?: ...}
+                     ← preferred; emits keyed form when label or hex color
+                     is present (so the server doesn't have to disambiguate).
+
+        Sprint staticmap-pin-labels 2026-05-23 — added `label` (1-4 ASCII
+        alphanumeric chars rendered inside the pin). Hex colours
+        ("#ff8800") accepted in dict form only — tuple/string forms stay
+        named-palette to keep wire parsing unambiguous.
+        """
         if isinstance(m, str):
             return m
-        if isinstance(m, (list, tuple)) and len(m) in (2, 3):
-            return ",".join(str(x) for x in m)
+        if isinstance(m, (list, tuple)):
+            if 2 <= len(m) <= 4:
+                return ",".join(str(x) for x in m)
+            raise ValueError(
+                "marker tuple must be (lat, lng), (lat, lng, color), "
+                "or (lat, lng, color, label)"
+            )
+        if isinstance(m, dict):
+            if "lat" not in m or "lng" not in m:
+                raise ValueError("marker dict must include 'lat' and 'lng'")
+            color = m.get("color")
+            label = m.get("label")
+            is_hex = isinstance(color, str) and color.startswith("#")
+            # Emit keyed form when label or hex color is present so the
+            # server parses unambiguously. Otherwise positional for
+            # back-compat with older SDK versions.
+            if label is not None or is_hex:
+                parts = [str(m["lat"]), str(m["lng"])]
+                if color is not None:
+                    parts.append(f"color:{color}")
+                if label is not None:
+                    parts.append(f"label:{label}")
+                return ",".join(parts)
+            parts = [str(m["lat"]), str(m["lng"])]
+            if color is not None:
+                parts.append(str(color))
+            return ",".join(parts)
         raise ValueError(
-            "each marker must be 'lat,lng[,color]' or a (lat, lng[, color]) tuple"
+            "each marker must be a 'lat,lng[,color[,label]]' string, "
+            "a (lat, lng[, color[, label]]) tuple, or a "
+            "{'lat': .., 'lng': .., 'color'?: .., 'label'?: ..} dict"
         )
 
     @staticmethod

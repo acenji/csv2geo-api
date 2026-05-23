@@ -503,11 +503,45 @@ export type TileStyleName =
   | 'toner'
   | 'dark-matter';
 
-/** A static map marker: 'lat,lng[,color]' string or a [lat, lng(, color)] tuple. */
+/**
+ * A static map marker. Five accepted shapes:
+ *   - raw string 'lat,lng' | 'lat,lng,color' | 'lat,lng,color,label'
+ *   - tuple [lat, lng] | [lat, lng, color] | [lat, lng, color, label]
+ *   - object {lat, lng, color?, label?}  ← preferred for new code
+ *
+ * Sprint staticmap-pin-labels 2026-05-23 — added the `label` slot.
+ * 1-4 ASCII alphanumeric chars, rendered inside the pin head. Used
+ * for numbered route-stop pins (the common case for printed walklist
+ * PDFs and tour maps).
+ *
+ * Hex colors (e.g. `#ff8800`) are accepted in the object form only —
+ * the tuple/string form sticks to named palette (red, blue, green,
+ * orange, purple, black, gray) to keep parsing unambiguous on the wire.
+ */
 export type StaticMapMarker =
   | string
   | [number, number]
-  | [number, number, string];
+  | [number, number, string]
+  | [number, number, string, string]
+  | StaticMapMarkerObject;
+
+export interface StaticMapMarkerObject {
+  /** Latitude (-90 to 90). */
+  lat: number;
+  /** Longitude (-180 to 180). */
+  lng: number;
+  /**
+   * Named palette color (red|blue|green|orange|purple|black|gray) or
+   * hex (#rgb / #rrggbb / rrggbb / rgb). Hex auto-uses the labelled-pin
+   * render path even when no label is set.
+   */
+  color?: string;
+  /**
+   * 1-4 ASCII alphanumeric chars rendered inside the pin head.
+   * Longer / non-alnum → 400 invalid_marker. Omit for an unlabelled pin.
+   */
+  label?: string;
+}
 
 /** A static map polyline overlay. */
 export interface StaticMapPath {

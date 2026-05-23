@@ -4,6 +4,33 @@ All notable changes to the CSV2GEO API are documented here. Format follows [Keep
 
 The CSV2GEO API service is versioned by URL path (`/v1/…`); this file tracks new endpoints, response-shape additions, and breaking changes.
 
+## [Sprint staticmap-pin-labels] — 2026-05-23 — Per-pin labels on `/v1/staticmap`
+
+### Added
+- `GET /v1/staticmap` accepts an optional **label slot** on each marker (1–4 ASCII alphanumeric chars rendered inside the pin head). Two equivalent syntaxes — pick either:
+  - **Positional**: `markers=lat,lng,color,label` (back-compat with the existing positional shape; named palette colors only)
+  - **Keyed**: `markers=lat,lng,color:red,label:7` (order-independent; also accepts hex colors like `color:#ff8800`)
+- Used for numbered route-stop pins — the canonical example is printed walklist PDFs where the canvasser carries a numbered table and needs the map pins to match row numbers.
+- Hex color support (`#rgb` / `#rrggbb`) in the keyed form only — positional stays named-palette to keep parsing unambiguous on the wire. Escape `#` as `%23` in query strings.
+- `GET /v1/icon` gained a new `type=pin&label=<text>` mode mirroring the staticmap label semantics. The staticmap proxy uses this internally over loopback so labelled-pin PNGs are deterministic and Cloudflare-cacheable per (color, label, size).
+- Embedded Noto Sans Bold font in the Go binary for the label-text render path (Font Awesome's glyph table has no ASCII digits/letters). SIL OFL 1.1 — `api/internal/handlers/assets/NotoSans-OFL.txt`. Adds ~620 KB to the binary.
+
+### Changed
+- The `markers` parameter description now documents both syntaxes. Back-compat is total — every existing `markers=lat,lng,color` request returns the same image as before.
+
+### Python SDK 1.14.0
+- `client.static_map_url(markers=[{"lat": ..., "lng": ..., "color": ..., "label": ...}, ...])` — the marker builder now accepts dict shapes alongside the existing tuple/string forms. When `label` or a hex color is present, the wire form auto-switches to keyed; otherwise stays positional for back-compat.
+- 4-element tuples `(lat, lng, color, label)` also accepted for terse positional construction.
+
+### Node SDK 1.14.0
+- `client.staticMapURL({ markers: [{ lat, lng, color, label }, ...] })` — same marker-shape extension. New `StaticMapMarkerObject` exported type.
+- 4-element tuples `[lat, lng, color, label]` accepted positionally.
+- Existing `StaticMapMarker` type union extended to include the new object form and 4-tuple.
+
+### Notes
+- The staticmap pipeline is Laravel → tileserver-gl → Go `/v1/icon`. Architecture decision: the Laravel proxy emits a `marker=lng,lat|http://172.17.0.1:8080/v1/icon?type=pin&color=&label=&...` URL per labelled pin; tileserver-gl (which runs in Docker, hence the bridge-gateway IP) fetches the labelled PNG over loopback and composites it into the basemap. Configurable via `STATICMAP_ICON_BASE_URL`.
+- Designed and shipped on 2026-05-23 in response to WalkLists' migration off Mapbox; their canonical use case (numbered walking-route pins) is the primary integration target.
+
 ## [1.13.1] — 2026-05-23 — Python `__version__` hotfix + Node parity bump
 
 ### Python SDK 1.13.1

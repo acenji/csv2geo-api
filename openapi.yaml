@@ -3586,10 +3586,31 @@ paths:
         - name: markers
           in: query
           description: |
-            Marker overlays — a pipe-separated list, each marker `lat,lng`
-            or `lat,lng,color`. Colors: red (default), blue, green, orange,
-            purple, black, gray. Up to 50 markers.
-          schema: {type: string, example: "40.7484,-73.9857,red|40.7549,-73.9840,blue"}
+            Marker overlays — a pipe-separated list, up to 50 markers per request.
+
+            **Two equivalent per-marker syntaxes:**
+
+            1. **Positional** (back-compat, named palette only):
+                - `lat,lng`
+                - `lat,lng,color`
+                - `lat,lng,color,label` _(Sprint staticmap-pin-labels 2026-05-23)_
+            2. **Keyed** (order-independent, accepts hex colors):
+                - `lat,lng,color:VAL[,label:VAL]`
+                - Example: `47.6062,-122.3321,color:#ff8800,label:42`
+
+            **Color** — named palette: `red` (default), `blue`, `green`,
+            `orange`, `purple`, `black`, `gray`. Keyed form also accepts
+            hex (`#rgb` / `#rrggbb`); escape `#` as `%23` in query strings.
+
+            **Label** _(Sprint staticmap-pin-labels 2026-05-23)_ —
+            1-4 ASCII alphanumeric chars rendered inside the pin head.
+            Used for numbered route-stop pins (printed walklist PDFs,
+            tour maps). Longer / non-alnum / mixing positional with keyed
+            in the same marker → 400 `invalid_marker`. Omit the slot for
+            an unlabelled pin (today's default render).
+          schema:
+            type: string
+            example: "47.6062,-122.3321,red,1|47.6090,-122.3360,blue,2|47.6020,-122.3290,color:#00aa00,label:3"
         - name: path
           in: query
           description: |
