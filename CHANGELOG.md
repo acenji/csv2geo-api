@@ -4,6 +4,15 @@ All notable changes to the CSV2GEO API are documented here. Format follows [Keep
 
 The CSV2GEO API service is versioned by URL path (`/v1/…`); this file tracks new endpoints, response-shape additions, and breaking changes.
 
+## [1.13.1] — 2026-05-23 — Python `__version__` hotfix + Node parity bump
+
+### Python SDK 1.13.1
+- **Fix:** `csv2geo.__version__` was hard-coded to `"1.12.0"` in `csv2geo/__init__.py` and was not bumped alongside `pyproject.toml` during the 1.13.0 ship. `importlib.metadata.version("csv2geo")` and PyPI's metadata both correctly reported `1.13.0`, but `print(csv2geo.__version__)` returned the stale value. Cosmetic only — no functional impact, the `radius=` kwarg and distance-aware bands all work as documented.
+- **Test guard added:** `test_dunder_version_matches_pyproject` in `tests/test_default_url.py` reads `pyproject.toml` directly and asserts `csv2geo.__version__` matches. Run `pip install -e .` before pytest so `importlib.metadata` picks up the source tree.
+
+### Node SDK 1.13.1
+- Version-parity bump only — the Node 1.13.0 ship did not have the equivalent bug. Bumped to keep cross-language SDK versions aligned, which is the convention every prior sprint has followed.
+
 ## [Sprint reverse-scoring] — 2026-05-23 — Distance-aware reverse accuracy + `?radius=`
 
 ### Added

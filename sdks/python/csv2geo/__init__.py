@@ -21,7 +21,7 @@ from .exceptions import (
     APIError,
 )
 
-__version__ = "1.12.0"
+__version__ = "1.13.1"
 __all__ = [
     "Client",
     "GeocodeResult",

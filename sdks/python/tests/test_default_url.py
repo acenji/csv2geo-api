@@ -50,6 +50,20 @@ def test_base_url_trailing_slash_normalized():
     c.close()
 
 
+def _read_pyproject_version():
+    """Read the canonical version straight from pyproject.toml — the single
+    source of truth that PyPI honors. Locking against this catches any
+    drift between pyproject.toml, csv2geo.__version__, and the User-Agent
+    string. The 1.13.0 ship had csv2geo.__version__ stuck at "1.12.0"
+    while pyproject was correct; this test would now fail before publish."""
+    import pathlib
+    pyproject = pathlib.Path(__file__).resolve().parent.parent / "pyproject.toml"
+    text = pyproject.read_text()
+    m = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
+    assert m, f"could not find version in {pyproject}"
+    return m.group(1)
+
+
 def test_user_agent_matches_package_version():
     """Drift between session UA and pyproject.toml hides reporting bugs."""
     import csv2geo
@@ -63,3 +77,19 @@ def test_user_agent_matches_package_version():
         f"csv2geo.__version__ {csv2geo.__version__!r}"
     )
     c.close()
+
+
+def test_dunder_version_matches_pyproject():
+    """csv2geo.__version__ MUST match pyproject.toml — the bug we are
+    locking out: 1.13.0 shipped with csv2geo.__version__ = "1.12.0" because
+    the hard-coded string in csv2geo/__init__.py was not bumped alongside
+    pyproject.toml. The package was on PyPI as 1.13.0, importlib.metadata
+    correctly reported 1.13.0, but `import csv2geo; print(csv2geo.__version__)`
+    returned the stale "1.12.0". This test would have caught it."""
+    import csv2geo
+    pyproject_version = _read_pyproject_version()
+    assert csv2geo.__version__ == pyproject_version, (
+        f"csv2geo.__version__ = {csv2geo.__version__!r} drifted from "
+        f"pyproject.toml version = {pyproject_version!r}. Both files "
+        f"must be bumped together; update csv2geo/__init__.py."
+    )
