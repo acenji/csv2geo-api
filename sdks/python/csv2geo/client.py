@@ -1490,6 +1490,103 @@ class Client:
         raise APIError(message, code=code, status=status)
 
     # ─────────────────────────────────────────────────────────
+    # Property Image (Sprint property-image 2026-05-23)
+    # /v1/property/image — USGS NAIP per-address aerial. US-only.
+    # Mirror of static_map / static_map_url shape: URL builder + bytes
+    # fetcher. 1 credit per call.
+    # ─────────────────────────────────────────────────────────
+
+    def property_image_url(
+        self,
+        q: str = None,
+        lat: float = None,
+        lng: float = None,
+        size: int = None,
+        fmt: str = None,
+    ) -> str:
+        """Build a /v1/property/image URL (does not fetch). Cheap when you
+        only need a URL to embed in an <img> tag — no credit charged.
+
+        Provide either ``q`` (free-text US address; geocoded server-side)
+        OR both ``lat`` and ``lng``. Coverage is US-only — non-US
+        coordinates return 400 ``out_of_coverage`` server-side.
+
+        Args:
+            q: Free-text US address. Geocoded internally (no separate charge).
+            lat: Latitude. Pair with ``lng``.
+            lng: Longitude. Pair with ``lat``.
+            size: Bbox edge length in meters (1-2000). Default 350 (typical
+                residential lot block). Server clamps; values outside the
+                range raise 400 ``invalid_size``.
+            fmt: One of ``"png"`` (default), ``"jpg"``, ``"webp"``.
+
+        Raises:
+            InvalidRequestError: When neither ``q`` nor (``lat``+``lng``) is set.
+
+        Example:
+            url = client.property_image_url(q="3168 Beckie Dr SW, Wyoming, MI", size=350)
+        """
+        if not q and (lat is None or lng is None):
+            raise InvalidRequestError(
+                "property_image requires either q=<address> or both lat= and lng=",
+                code="missing_query", status=400,
+            )
+
+        from urllib.parse import urlencode
+
+        params = {"api_key": self.api_key}
+        if q:
+            params["q"] = q
+        else:
+            params["lat"] = lat
+            params["lng"] = lng
+        if size is not None:
+            params["size"] = size
+        if fmt is not None:
+            params["format"] = fmt
+
+        return f"{self.base_url}/property/image?{urlencode(params)}"
+
+    def property_image(
+        self,
+        q: str = None,
+        lat: float = None,
+        lng: float = None,
+        size: int = None,
+        fmt: str = None,
+    ) -> bytes:
+        """Fetch a /v1/property/image and return raw image bytes. Costs 1 credit.
+
+        Same arguments as :meth:`property_image_url`.
+
+        Returns:
+            Raw image bytes (PNG/JPEG/WebP per ``fmt``).
+
+        Example:
+            png = client.property_image(q="3168 Beckie Dr SW, Wyoming, MI")
+            with open("aerial.png", "wb") as f:
+                f.write(png)
+        """
+        url = self.property_image_url(q=q, lat=lat, lng=lng, size=size, fmt=fmt)
+        response = self._session.get(url, timeout=self.timeout)
+        if 200 <= response.status_code < 300:
+            return response.content
+        try:
+            error_data = response.json().get("error", {})
+            code = error_data.get("code", "unknown")
+            message = error_data.get("message", "Unknown error")
+            status = error_data.get("status", response.status_code)
+        except (ValueError, KeyError):
+            code = "unknown"
+            message = response.text or "Unknown error"
+            status = response.status_code
+        if response.status_code == 400:
+            raise InvalidRequestError(message, code=code, status=status)
+        if response.status_code == 401:
+            raise AuthenticationError(message, code=code, status=status)
+        raise APIError(message, code=code, status=status)
+
+    # ─────────────────────────────────────────────────────────
 
     def close(self):
         """Close the client session."""

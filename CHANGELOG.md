@@ -4,6 +4,35 @@ All notable changes to the CSV2GEO API are documented here. Format follows [Keep
 
 The CSV2GEO API service is versioned by URL path (`/v1/…`); this file tracks new endpoints, response-shape additions, and breaking changes.
 
+## [Sprint property-image] — 2026-05-23 — Per-address property aerial (`/v1/property/image`)
+
+### Added
+- New endpoint `GET /v1/property/image` returns a 600×600 PNG/JPEG/WebP aerial of any US property by address or coordinates.
+- Two input shapes: `q=<address>` (geocoded internally — no extra charge) OR `lat=<n>&lng=<n>` (direct).
+- `size` parameter — bbox edge length in meters, default 350 (~typical residential lot), max 2000.
+- `format` parameter — `png` (default), `jpg`, `webp`.
+- US-only coverage gate (CONUS + Alaska + Hawaii) — non-US coords return 400 `out_of_coverage` with the offending coordinate named.
+- Source: USGS NAIP via `imagery.nationalmap.gov` ImageServer. Public-domain, no API key required, ~0.6 m typical resolution. We host zero imagery; per-request proxy with 30-day immutable `Cache-Control` so Cloudflare absorbs repeats per unique address.
+
+### Python SDK 1.15.0
+- `client.property_image(q=, lat=, lng=, size=, fmt=)` — fetches bytes (1 credit per call).
+- `client.property_image_url(...)` — builds the URL without fetching (no credit charged).
+- Same kwargs both methods. Local validation rejects calls missing both `q` and `lat`+`lng` before sending.
+
+### Node SDK 1.15.0
+- `client.propertyImage({ q, lat, lng, size, format })` — same shape.
+- `client.propertyImageURL({ ... })` — URL builder.
+- New `PropertyImageOptions` TypeScript interface.
+
+### OpenAPI
+- New `/property/image` path in all 3 spec files (`csv2geo-api/openapi.yaml`, `csv2geo/public/api-static/openapi.yaml`, `csv2geo/public/api-collections/openapi.yaml`) — byte-identical per Protocol F6.
+
+### Notes
+- 1 credit per call (`config/credit_costs.php` → `property_image`).
+- Cold-call latency dominated by USGS round-trip (~1-2 s typical, 30 s max).
+- Use cases: real-estate listings, insurance underwriting, appraisal, property research, computer-vision input for roof/pool/solar detection.
+- Verified live 2026-05-23 against Wyoming MI (3168 Beckie Dr SW), White House DC. 8/8 customer-URL smoke probes pass.
+
 ## [Sprint staticmap-pin-labels] — 2026-05-23 — Per-pin labels on `/v1/staticmap`
 
 ### Added

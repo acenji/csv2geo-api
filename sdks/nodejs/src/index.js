@@ -1400,6 +1400,96 @@ class Client {
       throw new APIError(String(e), 'connection_error');
     }
   }
+
+  // ─────────────────────────────────────────────────────────
+  // Property Image (Sprint property-image 2026-05-23)
+  // /v1/property/image — USGS NAIP per-address aerial. US-only.
+  // Mirrors the staticMap shape: URL builder + bytes fetcher.
+  // 1 credit per call.
+  // ─────────────────────────────────────────────────────────
+
+  /**
+   * Build a /v1/property/image URL (does not fetch). Use this when you
+   * only need a URL to embed in an <img> tag — no credit charged.
+   *
+   * Provide either `q` (free-text US address; geocoded server-side)
+   * OR both `lat` and `lng`. Coverage is US-only — non-US coordinates
+   * return 400 `out_of_coverage` server-side.
+   *
+   * @param {Object} opts
+   * @param {string} [opts.q]      Free-text US address (geocoded server-side, no extra charge)
+   * @param {number} [opts.lat]    Latitude; pair with lng
+   * @param {number} [opts.lng]    Longitude; pair with lat
+   * @param {number} [opts.size]   Bbox edge length in meters (1-2000). Default 350.
+   * @param {string} [opts.format] 'png' (default) | 'jpg' | 'webp'
+   * @returns {string} Full property/image URL with api_key embedded.
+   *
+   * @example
+   * const url = client.propertyImageURL({ q: '3168 Beckie Dr SW, Wyoming, MI', size: 350 });
+   */
+  propertyImageURL(opts = {}) {
+    if (!opts.q && (opts.lat == null || opts.lng == null)) {
+      throw new InvalidRequestError(
+        'propertyImage requires either { q: <address> } or { lat, lng }',
+        'missing_query', 400,
+      );
+    }
+    const params = new URLSearchParams({ api_key: this.apiKey });
+    if (opts.q) {
+      params.set('q', opts.q);
+    } else {
+      params.set('lat', String(opts.lat));
+      params.set('lng', String(opts.lng));
+    }
+    if (opts.size != null) params.set('size', String(opts.size));
+    if (opts.format != null) params.set('format', opts.format);
+    return `${this.baseUrl}/property/image?${params.toString()}`;
+  }
+
+  /**
+   * Fetch a /v1/property/image and return raw image bytes. Costs 1 credit.
+   * Same options as propertyImageURL().
+   *
+   * @param {Object} opts See propertyImageURL().
+   * @returns {Promise<Buffer>} Raw image bytes (PNG/JPEG/WebP per opts.format).
+   *
+   * @example
+   * const png = await client.propertyImage({ q: '3168 Beckie Dr SW, Wyoming, MI' });
+   * fs.writeFileSync('aerial.png', png);
+   */
+  async propertyImage(opts = {}) {
+    const url = this.propertyImageURL(opts);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': '*/*', 'User-Agent': `csv2geo-node/${SDK_VERSION}` },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      this.rateLimit = response.headers.get('X-RateLimit-Limit');
+      this.rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
+      if (response.ok) {
+        const arr = await response.arrayBuffer();
+        return Buffer.from(arr);
+      }
+      const data = await response.json().catch(() => ({}));
+      const err = data.error || {};
+      if (response.status === 400) {
+        throw new InvalidRequestError(err.message || 'Invalid request', err.code || 'unknown', err.status || 400);
+      }
+      if (response.status === 401) {
+        throw new AuthenticationError(err.message || 'Unauthorized', err.code || 'unknown', err.status || 401);
+      }
+      throw new APIError(err.message || 'Unknown error', err.code || 'unknown', err.status || response.status);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      if (e.name === 'AbortError') throw new APIError('Request timed out', 'timeout');
+      if (e instanceof CSV2GEOError) throw e;
+      throw new APIError(String(e), 'connection_error');
+    }
+  }
 }
 
 module.exports = {

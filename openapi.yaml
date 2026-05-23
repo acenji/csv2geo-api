@@ -3638,6 +3638,132 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /property/image:
+    get:
+      tags:
+        - Maps
+      summary: Per-address property aerial image (USGS NAIP, US-only)
+      description: |
+        Returns a high-resolution aerial image (~0.6 m typical resolution)
+        of a US property by address or coordinates. Sourced from USGS
+        NAIP (public-domain US aerial imagery, no key required) and
+        proxied on-demand — zero hosted imagery on our side.
+
+        **Two equivalent input shapes** (provide one):
+
+        - `q=<address>` — free-text US address. We geocode internally
+          (no extra charge) and use the resulting coordinates.
+        - `lat=<n>&lng=<n>` — direct coordinates. Skips geocode.
+
+        **Coverage is US-only** (CONUS + AK + HI). Non-US coordinates
+        return 400 `out_of_coverage`. The bbox check is intentionally a
+        rough rectangle filter — near-border points (southern Ontario,
+        northwestern Mexico) may pass through the guard and reach USGS,
+        which returns a near-blank tile for those areas.
+
+        **Use cases:** real-estate listings, insurance underwriting,
+        appraisal, property research, computer-vision substrate (roof
+        condition, pool detection, solar panel surveys).
+
+        **Billing:** 1 credit per call. Deterministic per
+        `(coords, size, format)` — Cloudflare absorbs repeats for 30
+        days, so re-fetching the same address costs only the first call.
+      operationId: propertyImage
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Free-text US address. Either `q` or `lat`+`lng` is required.
+          schema:
+            type: string
+          example: "3168 Beckie Dr SW, Wyoming, MI 49418"
+        - name: lat
+          in: query
+          required: false
+          description: Latitude. Pair with `lng`. Either this pair or `q` is required.
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          example: 42.86753
+        - name: lng
+          in: query
+          required: false
+          description: Longitude. Pair with `lat`.
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          example: -85.7419
+        - name: size
+          in: query
+          required: false
+          description: |
+            Bbox edge length in meters. Default 350 (~typical residential
+            lot block). Maximum 2000. Out-of-range returns 400
+            `invalid_size`.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 350
+        - name: format
+          in: query
+          required: false
+          description: Output image format.
+          schema:
+            type: string
+            enum: [png, jpg, webp]
+            default: png
+      responses:
+        '200':
+          description: Aerial image
+          headers:
+            Cache-Control:
+              schema: {type: string, example: "public, max-age=2592000, immutable"}
+          content:
+            image/png:
+              schema: {type: string, format: binary}
+            image/jpeg:
+              schema: {type: string, format: binary}
+            image/webp:
+              schema: {type: string, format: binary}
+        '400':
+          description: |
+            Invalid input — `missing_query` (neither q nor lat+lng),
+            `invalid_latitude`, `invalid_longitude`, `invalid_size`,
+            `invalid_format`, or `out_of_coverage` (coordinate outside
+            the US bounding box).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: |
+            `geocode_no_result` — `q` was passed but no US address
+            matched. Pass `lat+lng` directly if you already have them.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: |
+            `upstream_error` — USGS NAIP server returned a non-2xx
+            response or the transport failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '504':
+          description: |
+            `upstream_timeout` — USGS NAIP did not respond within 30 s.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     ApiKeyQuery:

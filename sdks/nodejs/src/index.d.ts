@@ -490,6 +490,39 @@ export class Client {
    * Same options as staticMapURL(); use this to save/process the image.
    */
   staticMap(opts?: StaticMapOptions): Promise<Buffer>;
+
+  /**
+   * Build a /v1/property/image URL — USGS NAIP per-address aerial.
+   * No credit charged for URL construction; the GET that fetches the
+   * bytes costs 1 credit. Sprint property-image 2026-05-23.
+   *
+   * Provide either `q` (free-text US address; geocoded server-side)
+   * OR both `lat` and `lng`. Coverage is US-only.
+   */
+  propertyImageURL(opts?: PropertyImageOptions): string;
+
+  /**
+   * Fetch a /v1/property/image and return raw image bytes. Costs 1 credit.
+   * Same options as propertyImageURL().
+   */
+  propertyImage(opts?: PropertyImageOptions): Promise<Buffer>;
+}
+
+/** Options for propertyImageURL() / propertyImage(). */
+export interface PropertyImageOptions {
+  /** Free-text US address. Geocoded internally (no extra charge). */
+  q?: string;
+  /** Latitude (-90 to 90). Pair with lng. */
+  lat?: number;
+  /** Longitude (-180 to 180). Pair with lat. */
+  lng?: number;
+  /**
+   * Bbox edge length in meters (1-2000). Default 350 (typical residential
+   * lot block). Server returns 400 invalid_size if out of range.
+   */
+  size?: number;
+  /** 'png' (default) | 'jpg' | 'webp'. */
+  format?: 'png' | 'jpg' | 'webp';
 }
 
 export type TileStyleName =
