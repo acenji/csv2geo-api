@@ -4,6 +4,33 @@ All notable changes to the CSV2GEO API are documented here. Format follows [Keep
 
 The CSV2GEO API service is versioned by URL path (`/v1/…`); this file tracks new endpoints, response-shape additions, and breaking changes.
 
+## [Sprint reverse-scoring] — 2026-05-23 — Distance-aware reverse accuracy + `?radius=`
+
+### Added
+- `GET /v1/reverse` and `POST /v1/reverse` accept a new `?radius=<meters>` query parameter (integer, 1–1500, clamped to 1500, malformed/zero/negative falls back to default). Allows opting into a wider nearest-address search for rural / agricultural coordinates where no address point exists within the default 100 m cap.
+- Reverse responses now return distance-aware `accuracy` and `accuracy_score`. Bands:
+  - `rooftop` (≤30 m) → `accuracy_score: 1.0`
+  - `building` (30–200 m) → `0.9`
+  - `street` (200–500 m) → `0.7`
+  - `postcode` (500–1500 m) → `0.5`
+  - `city` (>1500 m) → `0.3`
+- New public help page at https://help.csv2geo.com/guide/accuracy-scoring documenting the full forward + reverse scoring methodology, source attribution (which results we score vs which carry supplier confidence), and recommended customer thresholds.
+
+### Changed
+- **Default search radius is unchanged at 100 m** — callers who don't pass `?radius=` see no change in coverage.
+- **But** reverse `accuracy_score` for an in-cap hit is no longer always `1.0`. A reverse hit at 50 m (which previously returned `accuracy: "rooftop", accuracy_score: 1.0`) now returns `accuracy: "building", accuracy_score: 0.9`. This corrects a long-standing over-claim where any hit within the 100 m cap was reported as rooftop precision regardless of actual offset.
+- New `accuracy` enum values: `building`, `street`, `postcode`, `city`. The existing values (`rooftop`, `interpolated`, `centroid`, `approximate`, `postcode`) are unchanged.
+
+### Python SDK 1.13.0
+- `client.reverse(lat, lng, radius=)`, `client.reverse_full(lat, lng, radius=)`, `client.reverse_batch(coords, radius=)` — new `radius` keyword argument forwarded to the API. Default behaviour unchanged when `radius` is omitted.
+
+### Node SDK 1.13.0
+- `client.reverse(lat, lng, { radius })`, `client.reverseFull(lat, lng, { radius })`, `client.reverseBatch(coords, { radius })` — new `radius` option in the existing options object. New TypeScript `ReverseOptions` interface; the reverse method signatures now accept it.
+
+### Notes
+- This change applies ONLY to our Overture-sourced reverse results. HERE and Google fallback paths do not apply to reverse — they're forward-only — so supplier confidence values are unaffected.
+- Historical task data (results stored in `csv2geo_tasks.user_*` collections from before 2026-05-23) is NOT backfilled. Re-running a task generates fresh scores; downloading an existing task surfaces whatever was scored at processing time.
+
 ## [Sprint 2.5] — 2026-05-13 — Async batch wrapper
 
 ### Added

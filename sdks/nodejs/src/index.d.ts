@@ -16,6 +16,24 @@ export interface GeocodeOptions {
   country?: string;
 }
 
+export interface ReverseOptions {
+  /** BCP-47 language tag for translated admin-level names (e.g. "de", "fr") */
+  lang?: string;
+  /** Comma-separated raw `?include=` value (e.g. "meta,places,timezone") */
+  include?: string;
+  /** Attach per-admin-level translation maps (shortcut for `include=other_names`) */
+  includeOtherNames?: boolean;
+  /**
+   * Search radius in metres for reverse geocoding (1-1500).
+   * Defaults to 100 m server-side when omitted. Wider radii return more
+   * distant matches with proportionally lower `accuracy_score`:
+   * rooftop ≤30m (1.0) / building ≤200m (0.9) / street ≤500m (0.7) /
+   * postcode ≤1500m (0.5). Values above 1500 are clamped server-side;
+   * malformed values fall back to the default.
+   */
+  radius?: number;
+}
+
 export interface AddressComponents {
   houseNumber?: string;
   street?: string;
@@ -280,17 +298,23 @@ export class Client {
    * Reverse geocode coordinates
    * @param lat Latitude
    * @param lng Longitude
+   * @param options Optional. `radius` (1-1500 m, default 100 server-side) widens
+   *   the search beyond the default rooftop radius; the returned `accuracy`
+   *   band reflects the actual distance (rooftop ≤30m / building ≤200m /
+   *   street ≤500m / postcode ≤1500m). `lang`, `include`, `includeOtherNames`
+   *   forwarded as documented on the API.
    * @returns Best result or null if not found
    */
-  reverse(lat: number, lng: number): Promise<GeocodeResult | null>;
+  reverse(lat: number, lng: number, options?: ReverseOptions): Promise<GeocodeResult | null>;
 
   /**
    * Reverse geocode with full response
    * @param lat Latitude
    * @param lng Longitude
+   * @param options Same as reverse(). See ReverseOptions.
    * @returns Full response with all results
    */
-  reverseFull(lat: number, lng: number): Promise<GeocodeResponse>;
+  reverseFull(lat: number, lng: number, options?: ReverseOptions): Promise<GeocodeResponse>;
 
   /**
    * Batch geocode multiple addresses
@@ -302,9 +326,10 @@ export class Client {
   /**
    * Batch reverse geocode multiple coordinates
    * @param coordinates Array of coordinates (max 10,000)
+   * @param options Same as reverse(); `radius` applies to every coord in the batch.
    * @returns Array of responses
    */
-  reverseBatch(coordinates: Coordinate[]): Promise<GeocodeResponse[]>;
+  reverseBatch(coordinates: Coordinate[], options?: ReverseOptions): Promise<GeocodeResponse[]>;
 
   /**
    * IP geolocation. Returns country/region/city/postcode/location/timezone/ISP,

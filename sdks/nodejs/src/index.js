@@ -201,10 +201,15 @@ class Client {
    * const result = await client.reverse(48.2082, 16.3738, { lang: 'de', includeOtherNames: true });
    * // result.components.country === 'Österreich'
    * // result.other_names.country.fr === 'Autriche'
+   *
+   * // Rural pin — opt into wider search:
+   * const r = await client.reverse(46.49125, -120.395, { radius: 1000 });
+   * // r.accuracy === 'postcode', r.accuracy_score === 0.5
    */
   async reverse(lat, lng, options = {}) {
     const params = { lat, lng };
     this._mergeI18n(params, options);
+    if (options.radius != null) params.radius = options.radius;
     const data = await this._request('GET', '/reverse', params);
     const results = data.results || [];
     return results.length > 0 ? this._parseResult(results[0]) : null;
@@ -214,12 +219,17 @@ class Client {
    * Reverse geocode with full response
    * @param {number} lat - Latitude
    * @param {number} lng - Longitude
-   * @param {Object} [options] - Options { lang, include, includeOtherNames }
+   * @param {Object} [options] - Options { lang, include, includeOtherNames, radius }
+   *   radius: Search radius in meters (1-1500). Defaults to 100m server-side.
+   *   Wider radii return more distant matches with proportionally lower
+   *   accuracy_score (rooftop ≤30m / building ≤200m / street ≤500m /
+   *   postcode ≤1500m).
    * @returns {Promise<GeocodeResponse>} Full response with all results
    */
   async reverseFull(lat, lng, options = {}) {
     const params = { lat, lng };
     this._mergeI18n(params, options);
+    if (options.radius != null) params.radius = options.radius;
     const data = await this._request('GET', '/reverse', params);
     return {
       query: data.query,
@@ -256,6 +266,8 @@ class Client {
   /**
    * Batch reverse geocode multiple coordinates
    * @param {Array<{lat: number, lng: number}>} coordinates - Array of coordinates (max 10,000)
+   * @param {Object} [options] - Options { lang, include, includeOtherNames, radius }
+   *   radius: Search radius in meters (1-1500) applied to every coord in the batch.
    * @returns {Promise<GeocodeResponse[]>} Array of responses
    *
    * @example
@@ -271,6 +283,7 @@ class Client {
 
     const params = {};
     this._mergeI18n(params, options);
+    if (options.radius != null) params.radius = options.radius;
     const data = await this._request('POST', '/reverse', params, { coordinates });
     return (data.results || []).map(r => ({
       query: r.query,

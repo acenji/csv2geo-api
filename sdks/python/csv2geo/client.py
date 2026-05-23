@@ -250,6 +250,7 @@ class Client:
         lang: str = None,
         include_other_names: bool = False,
         include: str = None,
+        radius: int = None,
     ) -> Optional[GeocodeResult]:
         """
         Reverse geocode coordinates to an address.
@@ -260,6 +261,10 @@ class Client:
             lang: BCP-47 tag for translated admin-level names. See geocode().
             include_other_names: Attach per-admin-level translation maps. See geocode().
             include: Comma-separated raw `?include=` value.
+            radius: Search radius in meters (1-1500). Defaults to 100m server-side.
+                Wider radii return more distant matches with proportionally lower
+                accuracy_score: rooftop (≤30m, 1.0), building (≤200m, 0.9),
+                street (≤500m, 0.7), postcode (≤1500m, 0.5).
 
         Returns:
             GeocodeResult or None if not found
@@ -267,9 +272,15 @@ class Client:
         Example:
             result = client.reverse(48.2082, 16.3738, lang="de", include_other_names=True)
             # result.other_names["country"]["en"] == "Austria"
+
+            # Rural pin — opt into wider search:
+            result = client.reverse(46.49125, -120.395, radius=1000)
+            # result.accuracy == "postcode", result.accuracy_score == 0.5
         """
         params = {"lat": lat, "lng": lng}
         self._merge_places_i18n(params, lang, include_other_names, include)
+        if radius is not None:
+            params["radius"] = radius
         data = self._request("GET", "/reverse", params=params)
         response = GeocodeResponse.from_dict(data)
         return response.best
@@ -281,6 +292,7 @@ class Client:
         lang: str = None,
         include_other_names: bool = False,
         include: str = None,
+        radius: int = None,
     ) -> GeocodeResponse:
         """
         Reverse geocode coordinates and return full response.
@@ -291,12 +303,16 @@ class Client:
             lang: BCP-47 tag for translated admin-level names.
             include_other_names: Attach per-admin-level translation maps. See geocode().
             include: Comma-separated raw `?include=` value.
+            radius: Search radius in meters (1-1500). See reverse() for the
+                distance-to-accuracy band mapping.
 
         Returns:
             GeocodeResponse with all matching results
         """
         params = {"lat": lat, "lng": lng}
         self._merge_places_i18n(params, lang, include_other_names, include)
+        if radius is not None:
+            params["radius"] = radius
         data = self._request("GET", "/reverse", params=params)
         return GeocodeResponse.from_dict(data)
 
@@ -338,6 +354,7 @@ class Client:
         lang: str = None,
         include_other_names: bool = False,
         include: str = None,
+        radius: int = None,
     ) -> List[GeocodeResponse]:
         """
         Reverse geocode multiple coordinates in a single request.
@@ -345,6 +362,9 @@ class Client:
         Args:
             coordinates: List of coordinates as (lat, lng) tuples, Location objects,
                         or dicts with 'lat' and 'lng' keys (max 10,000)
+            radius: Search radius in meters (1-1500) applied to every coordinate
+                in the batch. See reverse() for the distance-to-accuracy band
+                mapping.
 
         Returns:
             List of GeocodeResponse objects
@@ -377,6 +397,8 @@ class Client:
 
         params = {}
         self._merge_places_i18n(params, lang, include_other_names, include)
+        if radius is not None:
+            params["radius"] = radius
         data = self._request("POST", "/reverse", params=params, json={"coordinates": coords_list})
         response = BatchGeocodeResponse.from_dict(data)
         return response.results

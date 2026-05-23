@@ -348,6 +348,30 @@ paths:
             minimum: 1
             maximum: 20
             default: 5
+        - name: radius
+          in: query
+          required: false
+          description: |
+            Reverse-search radius in metres. Default 100 (server-side); values
+            above 1500 are clamped; malformed / zero / negative fall back to
+            default. Widening the radius returns more distant matches with
+            proportionally lower `accuracy_score`:
+
+              * `≤30 m` → `accuracy: rooftop, accuracy_score: 1.0`
+              * `≤200 m` → `accuracy: building, accuracy_score: 0.9`
+              * `≤500 m` → `accuracy: street, accuracy_score: 0.7`
+              * `≤1500 m` → `accuracy: postcode, accuracy_score: 0.5`
+
+            Use the wider band for rural / agricultural coordinates where no
+            address point exists within the default 100 m cap. See
+            https://help.csv2geo.com/guide/accuracy-scoring for the full
+            methodology.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1500
+            default: 100
+          example: 1000
       responses:
         '200':
           description: Successful reverse geocoding response
@@ -374,6 +398,21 @@ paths:
       summary: Batch reverse geocode multiple coordinates
       description: Convert up to 10,000 coordinates to addresses in a single request
       operationId: reverseBatch
+      parameters:
+        - name: radius
+          in: query
+          required: false
+          description: |
+            Reverse-search radius in metres applied to every coordinate in the
+            batch. Default 100; clamped at 1500; malformed / zero / negative
+            fall back to default. See the single `GET /reverse` endpoint above
+            for the distance-to-accuracy band mapping.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1500
+            default: 100
+          example: 1000
       requestBody:
         required: true
         content:
