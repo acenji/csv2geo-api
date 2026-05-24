@@ -4,6 +4,35 @@ All notable changes to the CSV2GEO API are documented here. Format follows [Keep
 
 The CSV2GEO API service is versioned by URL path (`/v1/…`); this file tracks new endpoints, response-shape additions, and breaking changes.
 
+## [Sprint ele-on-places] — 2026-05-24 — Inline `ele` on Places (`?include=elevation`)
+
+### Added
+- `GET /v1/places`, `/v1/places/nearby`, `/v1/places/by-id/{id}`, `/v1/places/random`, `/v1/places/chain`, `/v1/places/batch`, `/v1/places/similar` accept `?include=elevation`. When set, each Place result gains an `ele` field (metres above sea level). Composable with the existing `?include=other_names` — pass `?include=other_names,elevation` to get both.
+- Source: Valhalla `/height` against a global Tilezen 30 m DEM. Loaded onto both Seattle (primary) and arbnode (HA backup) — arbnode previously had ZERO elevation tiles, so this ship also closes a pre-existing HA gap on `/v1/elevation` itself.
+- **One batched Valhalla call per result page**, not N per result. Valhalla caps `/height` at 500 points; a Places page is far smaller, so the extra cost is one internal round-trip rather than per-result.
+- **Fail-soft:** if Valhalla is unavailable, the Places response still returns 200 — `ele` is simply omitted from each result. Customer never sees a 5xx because elevation enrichment failed.
+- **Opt-in by design:** no per-call cost when callers don't pass `?include=elevation`. The Places handler skips the Valhalla round-trip entirely.
+- `ele` returns `null` for any coordinate whose DEM tile isn't on the serving node — distinct from a real 0 m elevation. (Real 0 m is encoded as the integer 0.)
+
+### Closed last Geoapify field-level parity gap
+- `geoapify-vs-csv2geo-comparison.md` §2 `ele` row flipped ❌→✅.
+- Headline count moves to 74 ✅.
+- The only remaining ❌ items are the satellite tile **basemap** (Sprint 3.0.5, gated on storage expansion — per-address aerial is shipped via `/v1/property/image`) and the two deliberate Geometry-API skips.
+
+### Python SDK 1.16.0
+- No new method or kwarg — `?include=elevation` flows through the existing `include="..."` string. Tests `tests/test_places_elevation.py` (7 cases) lock the wire contract: a customer passing `include="elevation"` or `include="other_names,elevation"` gets that exact string on the URL the server sees, and defaults still send no `include` param.
+
+### Node SDK 1.16.0
+- Same approach: `client.places({ include: "elevation" })` flows through. Tests `test/places-elevation.test.js` (6 cases) mirror the Python coverage.
+
+### OpenAPI
+- `ele` documented on the `PlaceResult` schema (nullable, optional).
+- `?include` param description on every Places endpoint updated to list `elevation` as a recognised value alongside `other_names`.
+
+### Notes
+- The new `ele` field exists in 5+ Places result paths (Search, Nearby, GetByID, Random, Chain, Batch, Similar) — all enriched consistently when `?include=elevation` is set.
+- Customers integrating across both SDKs: kwarg-style `include="elevation"` (Python) and option-style `{ include: "elevation" }` (Node) match the existing place i18n pattern.
+
 ## [Sprint property-image] — 2026-05-23 — Per-address property aerial (`/v1/property/image`)
 
 ### Added

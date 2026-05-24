@@ -1158,9 +1158,15 @@ paths:
           in: query
           required: false
           description: |
-            Comma list. Currently `other_names` — attaches the full
-            translations map under `other_names` on each result.
-          schema: { type: string, example: "other_names" }
+            Comma-separated list of optional enrichments:
+              * `other_names` — attaches the full translations map under
+                `other_names` on each result.
+              * `elevation` — populates `ele` (metres above sea level) on
+                each result via one batched Valhalla `/height` call per page.
+                Global Tilezen 30 m DEM (Sprint ele-on-places 2026-05-24).
+                Fail-soft: `ele` simply omitted if the elevation service is
+                unavailable; the Places response still returns 200.
+          schema: { type: string, example: "other_names,elevation" }
       responses:
         '200':
           description: Successful search response
@@ -1253,8 +1259,12 @@ paths:
           in: query
           required: false
           description: |
-            Comma list. `other_names` attaches the full translations map.
-          schema: { type: string, example: "other_names" }
+            Comma-separated list of optional enrichments:
+              * `other_names` — attaches the full translations map.
+              * `elevation` — populates `ele` (metres above sea level) via
+                one batched Valhalla `/height` call per result page. Global
+                Tilezen 30 m DEM (Sprint ele-on-places 2026-05-24). Fail-soft.
+          schema: { type: string, example: "other_names,elevation" }
       responses:
         '200':
           description: Successful nearby search response
@@ -1361,8 +1371,12 @@ paths:
           in: query
           required: false
           description: |
-            Comma list. `other_names` attaches the full translations map.
-          schema: { type: string, example: "other_names" }
+            Comma-separated list of optional enrichments:
+              * `other_names` — attaches the full translations map.
+              * `elevation` — populates `ele` (metres above sea level) via
+                one batched Valhalla `/height` call per result page. Global
+                Tilezen 30 m DEM (Sprint ele-on-places 2026-05-24). Fail-soft.
+          schema: { type: string, example: "other_names,elevation" }
       responses:
         '200':
           description: Random places
@@ -1493,8 +1507,12 @@ paths:
           in: query
           required: false
           description: |
-            Comma list. `other_names` attaches the full translations map.
-          schema: { type: string, example: "other_names" }
+            Comma-separated list of optional enrichments:
+              * `other_names` — attaches the full translations map.
+              * `elevation` — populates `ele` (metres above sea level) via
+                one batched Valhalla `/height` call per result page. Global
+                Tilezen 30 m DEM (Sprint ele-on-places 2026-05-24). Fail-soft.
+          schema: { type: string, example: "other_names,elevation" }
       responses:
         '200':
           description: Chain locations
@@ -1609,8 +1627,12 @@ paths:
           in: query
           required: false
           description: |
-            Comma list. `other_names` attaches the full translations map.
-          schema: { type: string, example: "other_names" }
+            Comma-separated list of optional enrichments:
+              * `other_names` — attaches the full translations map.
+              * `elevation` — populates `ele` (metres above sea level) via
+                one batched Valhalla `/height` call per result page. Global
+                Tilezen 30 m DEM (Sprint ele-on-places 2026-05-24). Fail-soft.
+          schema: { type: string, example: "other_names,elevation" }
       responses:
         '200':
           description: Similar places
@@ -1651,8 +1673,12 @@ paths:
           in: query
           required: false
           description: |
-            Comma list. `other_names` attaches the full translations map.
-          schema: { type: string, example: "other_names" }
+            Comma-separated list of optional enrichments:
+              * `other_names` — attaches the full translations map.
+              * `elevation` — populates `ele` (metres above sea level) via
+                one batched Valhalla `/height` call per result page. Global
+                Tilezen 30 m DEM (Sprint ele-on-places 2026-05-24). Fail-soft.
+          schema: { type: string, example: "other_names,elevation" }
       requestBody:
         required: true
         content:
@@ -1710,8 +1736,12 @@ paths:
           in: query
           required: false
           description: |
-            Comma list. `other_names` attaches the full translations map.
-          schema: { type: string, example: "other_names" }
+            Comma-separated list of optional enrichments:
+              * `other_names` — attaches the full translations map.
+              * `elevation` — populates `ele` (metres above sea level) via
+                one batched Valhalla `/height` call per result page. Global
+                Tilezen 30 m DEM (Sprint ele-on-places 2026-05-24). Fail-soft.
+          schema: { type: string, example: "other_names,elevation" }
       responses:
         '200':
           description: Place details
@@ -4151,6 +4181,18 @@ components:
           example:
             en: "CoCo Ichibanya"
             ja: "CoCo壱番屋"
+        ele:
+          type: number
+          format: float
+          nullable: true
+          description: |
+            Elevation above sea level, in metres. Populated **only when**
+            `?include=elevation` is passed; omitted otherwise (no Valhalla
+            round-trip when not requested). `null` means the elevation tile
+            for this coordinate isn't on the serving node — distinct from a
+            real 0 m elevation. Sourced from Tilezen 30 m DEM globally
+            (Sprint ele-on-places 2026-05-24).
+          example: 18
 
     PlacesSearchResponse:
       type: object
