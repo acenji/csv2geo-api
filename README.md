@@ -3,9 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0-green.svg)](openapi.yaml)
 [![Addresses](https://img.shields.io/badge/addresses-461M%2B-orange.svg)](https://csv2geo.com)
-[![Countries](https://img.shields.io/badge/countries-39-blue.svg)](https://csv2geo.com/batchgeocoding)
+[![Countries](https://img.shields.io/badge/countries-41-blue.svg)](https://csv2geo.com/batchgeocoding)
 
-Official API documentation, SDKs, and examples for [CSV2GEO](https://csv2geo.com) — the batch geocoding platform with **461 million+ addresses** across **39 countries**.
+Official API documentation, SDKs, and examples for [CSV2GEO](https://csv2geo.com) — the batch geocoding platform with **461 million+ addresses** across **41 countries**.
 
 ## What is CSV2GEO?
 
@@ -15,7 +15,7 @@ CSV2GEO is a geocoding service that converts street addresses to geographic coor
 - **461M+ addresses** indexed worldwide
 - **72M+ places** and points of interest
 - **4.6M+ boundaries** (administrative divisions)
-- **39 countries** with rooftop-level coverage
+- **41 countries** with rooftop-level coverage
 - **Free tier**: 100 geocoded rows per day, no credit card required
 - **Batch processing**: Upload CSV/Excel files with thousands of addresses
 - **WGS84** decimal degree output, compatible with all mapping software
@@ -203,7 +203,7 @@ const results = await client.batchGeocode([
 
 ## Country Coverage
 
-CSV2GEO covers **39 countries** with over **461 million addresses**:
+CSV2GEO covers **41 countries** with over **461 million addresses**:
 
 | Country | Addresses | Country | Addresses |
 |---------|-----------|---------|-----------|
@@ -213,7 +213,7 @@ CSV2GEO covers **39 countries** with over **461 million addresses**:
 | 🇫🇷 France | 26M+ | 🇦🇺 Australia | 14M+ |
 | 🇮🇹 Italy | 26M+ | 🇳🇱 Netherlands | 10M+ |
 
-Plus 29 more countries including Spain, Poland, Belgium, Austria, Switzerland, Denmark, Norway, Sweden, Finland, Czech Republic, Colombia, Chile, and more.
+Plus 31 more countries including Spain, Poland, Hungary, Peru, Belgium, Austria, Switzerland, Denmark, Norway, Finland, Czech Republic, Colombia, Chile, and more.
 
 ## Rate Limits
 
