@@ -9,3 +9,7 @@ __pycache__/
 # Node
 node_modules/
 *.tgz
+
+# npm auth tokens — NEVER commit (repo auto-publishes to GitHub Pages from '.')
+.npmrc
+**/.npmrc
