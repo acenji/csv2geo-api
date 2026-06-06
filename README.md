@@ -5,7 +5,7 @@
 [![Addresses](https://img.shields.io/badge/addresses-504M%2B-orange.svg)](https://csv2geo.com)
 [![Countries](https://img.shields.io/badge/countries-41-blue.svg)](https://csv2geo.com/batchgeocoding)
 
-Official API documentation, SDKs, and examples for [CSV2GEO](https://csv2geo.com) — the batch geocoding platform with **504 million+ addresses** across **60 countries**.
+Official API documentation, SDKs, and examples for [CSV2GEO](https://csv2geo.com) — the batch geocoding platform with **504 million+ addresses** across **63 countries**.
 
 ## What is CSV2GEO?
 
@@ -15,7 +15,7 @@ CSV2GEO is a geocoding service that converts street addresses to geographic coor
 - **504M+ addresses** indexed worldwide
 - **72M+ places** and points of interest
 - **4.6M+ boundaries** (administrative divisions)
-- **60 countries** with rooftop-level coverage
+- **63 countries** with rooftop-level coverage
 - **Free tier**: 100 geocoded rows per day, no credit card required
 - **Batch processing**: Upload CSV/Excel files with thousands of addresses
 - **WGS84** decimal degree output, compatible with all mapping software
@@ -203,7 +203,7 @@ const results = await client.batchGeocode([
 
 ## Country Coverage
 
-CSV2GEO covers **60 countries** with over **504 million addresses**:
+CSV2GEO covers **63 countries** with over **504 million addresses**:
 
 | Country | Addresses | Country | Addresses |
 |---------|-----------|---------|-----------|

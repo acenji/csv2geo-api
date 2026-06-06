@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csv2geo"
-version = "1.17.0"
-description = "Python SDK for CSV2GEO Geocoding API — 504M+ addresses, 60 countries, 48+ endpoints. Forward, reverse, batch, places, boundaries (postcode → polygon, ancestors walk-up, children walk-down, consolidated cities), IP geolocation with county overlay, vector tiles, static map images, coverage, autocomplete. 3,000 free requests/day."
+version = "1.17.1"
+description = "Python SDK for CSV2GEO Geocoding API — 504M+ addresses, 63 countries, 48+ endpoints. Forward, reverse, batch, places, boundaries (postcode → polygon, ancestors walk-up, children walk-down, consolidated cities), IP geolocation with county overlay, vector tiles, static map images, coverage, autocomplete. 3,000 free requests/day."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [

@@ -13,7 +13,7 @@ info:
     - **Places API** - Search 72M+ POIs (businesses, landmarks, restaurants)
     - **Divisions API** - 4.6M+ administrative boundaries (cities, counties, neighborhoods)
     - **Utilities** - Timezone lookup, distance calculations
-    - Global coverage across 60 countries with rooftop-level accuracy
+    - Global coverage across 63 countries with rooftop-level accuracy
 
     ## Authentication
     All requests require an API key. Include it as:
@@ -1967,7 +1967,7 @@ paths:
                   success:         { type: boolean, example: true }
                   total_addresses: { type: integer, example: 460734720 }
                   total_places:    { type: integer, example: 46318120 }
-                  total_countries: { type: integer, example: 60 }
+                  total_countries: { type: integer, example: 63 }
                   countries:
                     type: array
                     description: Per-country breakdown, ordered by address count
