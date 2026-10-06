@@ -4,6 +4,23 @@ All notable changes to the CSV2GEO API are documented here. Format follows [Keep
 
 The CSV2GEO API service is versioned by URL path (`/v1/…`); this file tracks new endpoints, response-shape additions, and breaking changes.
 
+## [Sprint normalize] — 2026-10-06 — `/v1/normalize`: parse-only USPS Pub 28 address normalization
+
+### Added
+- `GET /v1/normalize` and `POST /v1/normalize` (1–1,000 addresses per request; each item a freeform string or `{id, address, address2, city, state, zip, country}`). Returns USPS Publication 28 parts — house number, predirectional, street name, suffix, postdirectional, unit type + unit, city, state, ZIP, ZIP+4 — plus a one-line `formatted` address, a `changed` flag, a `changes` list and a `confidence`/`reason`.
+- **Parse-only:** no geocoding, no database lookup, no coordinates; never invents a house number. Deterministic and idempotent. Bad rows return `ok: false` + `reason`, never an error status.
+- Directionals always `N S E W NE NW SE SW` (Pub 28 s233, including the s233.3 and s233.23 exceptions); suffixes, unit designators and states come from tables generated directly from Pub 28 Appendix C1 / C2 / B.
+- Billing: 1 credit for `GET`, 0.5 credit per address for a `POST` batch (same as `/v1/parse`).
+- Why: nothing normalized an address before it was stored or geocoded. `/v1/parse` returns raw lowercased libpostal labels with predirectional + street + suffix + postdirectional fused in `road`; `/v1/standardize` does a database lookup and has no batch form.
+
+### Fixed (documentation)
+- `POST /v1/parse` is capped at **1,000** addresses per request, not 10,000 as `openapi.yaml` and both SDKs claimed (verified live: 1,001 items returns HTTP 400). OpenAPI and the SDK client-side checks now say 1,000.
+
+### OpenAPI / collections / SDKs
+- `openapi.yaml`: new `/normalize` (GET + POST) and `NormalizeItem`, `NormalizeResult`, `NormalizeResponse`, `BatchNormalizeRequest`, `BatchNormalizeResponse` schemas.
+- Postman and Insomnia collections: two new requests (Normalize, Batch normalize).
+- Python SDK 1.18.0 (`normalize`, `normalize_batch`), Node SDK 1.18.0 (`normalize`, `normalizeBatch`, TypeScript types). See their changelogs.
+
 ## [Sprint ele-on-places] — 2026-05-24 — Inline `ele` on Places (`?include=elevation`)
 
 ### Added

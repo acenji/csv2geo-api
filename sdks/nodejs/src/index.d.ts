@@ -58,6 +58,53 @@ export interface GeocodeResponse {
   results: GeocodeResult[];
 }
 
+/** One row for /normalize: a freeform string, or structured fields. */
+export type NormalizeInput = string | {
+  id?: string;
+  /** freeform string; alternative to the structured fields */
+  q?: string;
+  address?: string;
+  address2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+};
+
+/** USPS Publication 28 normalization result (parse-only; never invents a house number). */
+export interface NormalizeResult {
+  id?: string;
+  ok: boolean;
+  /** true if any non-case rewrite was applied (see `changes`) */
+  changed: boolean;
+  house_number: string;
+  /** N S E W NE NW SE SW, or '' */
+  predirectional: string;
+  street_name: string;
+  /** USPS Pub 28 App. C1 standard suffix, e.g. ST, AVE, BLVD */
+  street_suffix: string;
+  postdirectional: string;
+  unit_type: string;
+  unit: string;
+  po_box?: string;
+  rural_route?: string;
+  city: string;
+  state: string;
+  zip: string;
+  zip4: string;
+  country: string;
+  formatted: string;
+  changes: string[];
+  /** empty, or: empty | po_box | rural_route | no_house_number | no_street_name | unparseable | non_us_not_normalized */
+  reason?: string;
+  confidence: 'high' | 'medium' | 'low' | 'none';
+}
+
+export interface NormalizeBatchResponse {
+  results: NormalizeResult[];
+  meta: { version: string; timestamp: string; total: number; successful: number; failed: number };
+}
+
 export interface Coordinate {
   lat: number;
   lng: number;
@@ -330,6 +377,12 @@ export class Client {
    * @returns Array of responses
    */
   reverseBatch(coordinates: Coordinate[], options?: ReverseOptions): Promise<GeocodeResponse[]>;
+
+  /** Normalize one address to USPS Pub 28 parts. Parse-only (no geocoding). GET /normalize */
+  normalize(input: NormalizeInput): Promise<{ result: NormalizeResult; meta: { version: string; timestamp: string } }>;
+
+  /** Normalize up to 1,000 addresses. POST /normalize. Bad rows return ok:false + reason, not an error. */
+  normalizeBatch(addresses: NormalizeInput[]): Promise<NormalizeBatchResponse>;
 
   /**
    * IP geolocation. Returns country/region/city/postcode/location/timezone/ISP,

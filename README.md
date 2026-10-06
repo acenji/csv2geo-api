@@ -182,10 +182,22 @@ const results = await client.batchGeocode([
 | POST | `/v1/geocode` | Batch forward geocode (up to 10,000 addresses) |
 | GET | `/v1/reverse` | Reverse geocode a single coordinate pair |
 | POST | `/v1/reverse` | Batch reverse geocode (up to 10,000 coordinates) |
+| GET | `/v1/normalize` | Normalize an address to USPS Publication 28 parts (parse-only, no geocoding) |
+| POST | `/v1/normalize` | Batch normalize addresses (up to 1,000) |
 | GET | `/v1/places` | Search for places and points of interest |
 | GET | `/v1/divisions` | Query administrative boundaries and divisions |
 
 ### Parameters
+
+**Normalize (`/v1/normalize`)** — parse-only USPS Publication 28 normalization; directionals as `N S E W NE NW SE SW`, standard suffixes and unit designators, 2-letter state, ZIP/ZIP+4. Never geocodes and never invents a house number.
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `q` | string | one of `q` / `address` | Freeform address |
+| `address`, `address2`, `city`, `state`, `zip`, `country` | string | no | Structured alternative to `q` |
+| `id` | string | no | Echoed back on the result |
+| `api_key` | string | yes | Your API key |
+
+`POST /v1/normalize` takes `{"addresses": [ "freeform string" | {id, address, address2, city, state, zip, country} , ... ]}` (1–1,000 items). Bad rows return `ok: false` plus a `reason`, never an error status.
 
 **Forward Geocode (`/v1/geocode`)**
 | Parameter | Type | Required | Description |

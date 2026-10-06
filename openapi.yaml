@@ -610,7 +610,7 @@ paths:
       tags:
         - Batch
       summary: Batch parse multiple addresses
-      description: Parse up to 10,000 addresses into components in a single request
+      description: Parse up to 1,000 addresses into components in a single request (a larger array is rejected with 400)
       operationId: parseBatch
       requestBody:
         required: true
@@ -669,6 +669,135 @@ paths:
                 $ref: '#/components/schemas/StandardizeResponse'
         '400':
           description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /normalize:
+    get:
+      tags:
+        - Address Tools
+      summary: Normalize an address to USPS Publication 28 form
+      description: |
+        Clean a raw US address into USPS Publication 28 parts **before** you store or geocode it.
+        Parse-only: no geocoding, no database lookup, no coordinates, and it never invents a house number.
+        Deterministic and idempotent - normalizing an already-clean address returns it unchanged.
+
+        - Directionals are returned as `N S E W NE NW SE SW` ("Northwest", "N.W.", "N W" all become `NW`).
+          Per Pub 28 s233, a directional between the street name and its suffix stays in the name, and two
+          consecutive opposite directionals (N-S, E-W) are not combined.
+        - Suffixes use the Pub 28 Appendix C1 standard abbreviation (`AVENUE`/`AV`/`AVN` -> `AVE`, `STREET`/`STRT` -> `ST`).
+        - Unit designators use Appendix C2 (`APARTMENT` -> `APT`, `SUITE` -> `STE`); states use Appendix B.
+        - ZIPs that lost a leading zero (`2134`) are restored (`02134`) and reported in `changes`.
+        - PO boxes and rural routes are recognised (`reason` = `po_box` / `rural_route`).
+        - Non-US `country` values are passed through untouched (`reason` = `non_us_not_normalized`).
+
+        Send either a freeform `q`, or structured fields (`address`, `address2`, `city`, `state`, `zip`, `country`).
+        Bad input returns `ok: false` with a `reason`, never an error status.
+      operationId: normalizeAddress
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Freeform address (alternative to the structured fields)
+          schema:
+            type: string
+          example: "123 Stewart Street Northwest, Huntsville, Alabama 35801"
+        - name: id
+          in: query
+          required: false
+          description: Echoed back as `result.id`
+          schema:
+            type: string
+        - name: address
+          in: query
+          required: false
+          description: Address line 1
+          schema:
+            type: string
+          example: "123 Stewart Street Northwest"
+        - name: address2
+          in: query
+          required: false
+          description: Address line 2 (unit)
+          schema:
+            type: string
+          example: "apartment 4"
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          description: Full name or 2-letter code
+          schema:
+            type: string
+        - name: zip
+          in: query
+          required: false
+          description: 5-digit ZIP or ZIP+4
+          schema:
+            type: string
+        - name: country
+          in: query
+          required: false
+          description: ISO 3166-1 alpha-2 (default US). Only US addresses are normalized.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Normalized address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NormalizeResponse'
+        '400':
+          description: Neither `q` nor `address` was supplied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Batch
+      summary: Batch normalize addresses to USPS Publication 28 form
+      description: |
+        Normalize up to 1,000 addresses per request (imports of any size: loop over chunks).
+        Each item is a freeform string or an object `{id, address, address2, city, state, zip, country}`
+        (or `{id, q}`); `id` is echoed back on the matching result. Results are returned in request order.
+        Billed per address. See `GET /normalize` for the rules.
+      operationId: normalizeBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchNormalizeRequest'
+      responses:
+        '200':
+          description: Batch normalize results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchNormalizeResponse'
+        '400':
+          description: Bad request (missing, empty, or more than 1,000 items)
           content:
             application/json:
               schema:
@@ -4484,8 +4613,8 @@ components:
       properties:
         addresses:
           type: array
-          description: List of addresses to parse (max 10,000)
-          maxItems: 10000
+          description: List of addresses to parse (max 1,000)
+          maxItems: 1000
           items:
             type: string
 
@@ -4496,6 +4625,98 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ParseResponse'
+        meta:
+          $ref: '#/components/schemas/BatchMeta'
+
+    NormalizeItem:
+      oneOf:
+        - type: string
+          description: Freeform address
+        - type: object
+          properties:
+            id: {type: string}
+            q: {type: string, description: Freeform address (alternative to the structured fields)}
+            address: {type: string}
+            address2: {type: string}
+            city: {type: string}
+            state: {type: string}
+            zip: {type: string}
+            country: {type: string}
+      example:
+        id: row-17
+        address: 123 Stewart Street Northwest
+        address2: apartment 4
+        city: huntsville
+        state: Alabama
+        zip: '35801'
+
+    NormalizeResult:
+      type: object
+      properties:
+        id: {type: string}
+        ok:
+          type: boolean
+          description: false when nothing addressable could be extracted (see `reason`)
+        changed:
+          type: boolean
+          description: true if any rewrite other than case/whitespace was applied (see `changes`)
+        house_number: {type: string}
+        predirectional: {type: string, description: 'N S E W NE NW SE SW, or empty'}
+        street_name: {type: string}
+        street_suffix: {type: string, description: Pub 28 Appendix C1 standard suffix (ST, AVE, BLVD ...)}
+        postdirectional: {type: string, description: 'N S E W NE NW SE SW, or empty'}
+        unit_type: {type: string, description: 'Pub 28 Appendix C2 (APT, STE, UNIT, #, ...)'}
+        unit: {type: string}
+        po_box: {type: string}
+        rural_route: {type: string}
+        city: {type: string}
+        state: {type: string, description: 2-letter USPS abbreviation}
+        zip: {type: string}
+        zip4: {type: string}
+        country: {type: string}
+        formatted:
+          type: string
+          description: One-line address, e.g. `123 STEWART ST NW APT 4, HUNTSVILLE AL 35801`
+        changes:
+          type: array
+          items: {type: string}
+          description: Human-readable list of what was fixed
+        reason:
+          type: string
+          description: Set when the row is not a complete street address
+          enum: [empty, po_box, rural_route, no_house_number, no_street_name, unparseable, non_us_not_normalized]
+        confidence:
+          type: string
+          enum: [high, medium, low, none]
+
+    NormalizeResponse:
+      type: object
+      properties:
+        result:
+          $ref: '#/components/schemas/NormalizeResult'
+        meta:
+          $ref: '#/components/schemas/Meta'
+
+    BatchNormalizeRequest:
+      type: object
+      required:
+        - addresses
+      properties:
+        addresses:
+          type: array
+          description: Addresses to normalize (1-1,000)
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/NormalizeItem'
+
+    BatchNormalizeResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/NormalizeResult'
         meta:
           $ref: '#/components/schemas/BatchMeta'
 

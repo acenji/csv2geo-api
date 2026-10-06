@@ -120,6 +120,13 @@ for (const response of results) {
     console.log(best.formattedAddress);
   }
 }
+
+// Normalize to USPS Pub 28 form (parse-only, no geocoding; up to 1,000 per call)
+const out = await client.normalizeBatch([
+  { id: '1', address: '123 Stewart Street Northwest', city: 'Huntsville', state: 'Alabama', zip: '35801' },
+  '309 S W Stewart Hwy, Columbus OH 43215',
+]);
+for (const r of out.results) console.log(r.ok, r.formatted, r.changes, r.reason);
 ```
 
 ### GeocodeResult Object

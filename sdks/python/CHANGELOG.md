@@ -2,6 +2,16 @@
 
 All notable changes to the Python SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to PyPI as [`csv2geo`](https://pypi.org/project/csv2geo/).
 
+## [1.18.0] — 2026-10-06 — Address normalization (`/v1/normalize`)
+
+### Added
+- `Client.normalize(address)` — `GET /normalize`. `address` is a freeform string or a dict with any of `id, address, address2, city, state, zip, country`. Returns `{"result": {...}}`.
+- `Client.normalize_batch(addresses)` — `POST /normalize`, 1–1,000 items (strings or dicts); `id` is echoed back.
+- Parse-only USPS Publication 28 normalization: directionals as `N S E W NE NW SE SW`, standard suffixes / unit designators, 2-letter state, ZIP + ZIP+4, `formatted`, `changed`, `changes`, `reason`, `confidence`. No geocoding.
+
+### Fixed
+- `parse_batch` limit is **1,000** (the API returns 400 above that), not 10,000; the client-side check and docstring now agree.
+
 ## [1.12.0] — 2026-05-21 — Static map images (Sprint 3.1)
 
 ### Added — 2 static map methods

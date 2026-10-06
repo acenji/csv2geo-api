@@ -431,10 +431,37 @@ class Client:
         return self._request("GET", "/parse", params={"q": address})
 
     def parse_batch(self, addresses: List[str]) -> dict:
-        """Parse up to 10,000 addresses. POST /parse"""
-        if len(addresses) > 10000:
-            raise InvalidRequestError("Max 10,000 per batch")
+        """Parse up to 1,000 addresses. POST /parse (the API rejects larger batches with 400)"""
+        if len(addresses) > 1000:
+            raise InvalidRequestError("Max 1,000 per batch")
         return self._request("POST", "/parse", json={"addresses": addresses})
+
+    def normalize(self, address: Union[str, dict]) -> dict:
+        """Normalize one address to USPS Publication 28 parts. GET /normalize
+
+        Parse-only: no geocoding, no database lookup, never invents a house number.
+        ``address`` is a freeform string, or a dict with any of
+        ``id, address, address2, city, state, zip, country``.
+        Returns ``{"result": {...}}`` with ``ok``, ``changed``, ``house_number``,
+        ``predirectional``, ``street_name``, ``street_suffix``, ``postdirectional``,
+        ``unit_type``, ``unit``, ``city``, ``state``, ``zip``, ``zip4``, ``country``,
+        ``formatted``, ``changes``, ``reason``, ``confidence``.
+        """
+        params = {"q": address} if isinstance(address, str) else dict(address)
+        return self._request("GET", "/normalize", params=params)
+
+    def normalize_batch(self, addresses: List[Union[str, dict]]) -> dict:
+        """Normalize up to 1,000 addresses in one request. POST /normalize
+
+        Each item is a freeform string or a dict (see :meth:`normalize`); ``id`` is
+        echoed back on the matching result. Bad rows come back with ``ok: false`` and a
+        ``reason`` rather than as an error status.
+        """
+        if not addresses:
+            raise InvalidRequestError("addresses must be a non-empty list")
+        if len(addresses) > 1000:
+            raise InvalidRequestError("Max 1,000 per batch")
+        return self._request("POST", "/normalize", json={"addresses": addresses})
 
     def standardize(self, address: str) -> dict:
         """Return a canonical / standardized form of the address. GET /standardize"""

@@ -334,10 +334,35 @@ class Client {
     return this._request('GET', '/parse', { q: address });
   }
 
-  /** Parse up to 10,000 addresses. POST /parse */
+  /** Parse up to 1,000 addresses. POST /parse (the API rejects larger batches with 400) */
   async parseBatch(addresses) {
-    if (addresses.length > 10000) throw new InvalidRequestError('Max 10,000 per batch');
+    if (addresses.length > 1000) throw new InvalidRequestError('Max 1,000 per batch');
     return this._request('POST', '/parse', {}, { addresses });
+  }
+
+  /**
+   * Normalize one address to USPS Publication 28 parts. GET /normalize.
+   * Parse-only: no geocoding, no database lookup, never invents a house number.
+   * `input` is a freeform string, or an object { id, address, address2, city, state, zip, country }.
+   * Returns { result: { ok, changed, house_number, predirectional, street_name, street_suffix,
+   *   postdirectional, unit_type, unit, city, state, zip, zip4, country, formatted, changes,
+   *   reason, confidence } }.
+   */
+  async normalize(input) {
+    const params = typeof input === 'string' ? { q: input } : { ...input };
+    return this._request('GET', '/normalize', params);
+  }
+
+  /**
+   * Normalize up to 1,000 addresses in one request. POST /normalize.
+   * Each item is a freeform string or an object { id, address, address2, city, state, zip, country };
+   * `id` is echoed back on the matching result. Bad rows come back with ok:false and a `reason`,
+   * never as an error status.
+   */
+  async normalizeBatch(addresses) {
+    if (!Array.isArray(addresses) || addresses.length < 1) throw new InvalidRequestError('addresses must be a non-empty array');
+    if (addresses.length > 1000) throw new InvalidRequestError('Max 1,000 per batch');
+    return this._request('POST', '/normalize', {}, { addresses });
   }
 
   /** Standardize an address. GET /standardize */

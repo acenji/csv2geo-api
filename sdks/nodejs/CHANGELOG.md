@@ -2,6 +2,17 @@
 
 All notable changes to the Node SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to npm as [`csv2geo-sdk`](https://www.npmjs.com/package/csv2geo-sdk).
 
+## [1.18.0] — 2026-10-06 — Address normalization (`/v1/normalize`)
+
+### Added
+- `client.normalize(input)` — `GET /normalize`. `input` is a freeform string or `{ id, address, address2, city, state, zip, country }`.
+- `client.normalizeBatch(addresses)` — `POST /normalize`, 1–1,000 items (strings or objects); `id` is echoed back.
+- TypeScript types `NormalizeInput`, `NormalizeResult`, `NormalizeBatchResponse`.
+- Parse-only USPS Publication 28 normalization (directionals `N S E W NE NW SE SW`, standard suffixes / unit designators, 2-letter state, ZIP + ZIP+4). No geocoding.
+
+### Fixed
+- `parseBatch` limit is **1,000** (the API returns 400 above that), not 10,000.
+
 ## [1.12.0] — 2026-05-21 — Static map images (Sprint 3.1)
 
 ### Added — 2 static map methods

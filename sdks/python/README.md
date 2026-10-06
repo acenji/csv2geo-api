@@ -113,6 +113,21 @@ for response in results:
         print(response.best.formatted_address)
 ```
 
+### Normalize addresses (USPS Pub 28, parse-only)
+
+```python
+out = client.normalize_batch([
+    {"id": "1", "address": "123 Stewart Street Northwest", "city": "Huntsville", "state": "Alabama", "zip": "35801"},
+    "309 S W Stewart Hwy, Columbus OH 43215",
+])
+for r in out["results"]:
+    print(r["ok"], r["formatted"], r["changes"], r.get("reason"))
+# True 123 STEWART ST NW, HUNTSVILLE AL 35801 [...]
+single = client.normalize("123 Stewart Street Northwest, Huntsville AL 35801")["result"]
+```
+
+Up to 1,000 addresses per call. No geocoding happens; directionals are returned as `N S E W NE NW SE SW`.
+
 ### GeocodeResult Object
 
 ```python

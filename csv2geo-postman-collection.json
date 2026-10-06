@@ -2599,6 +2599,77 @@
           }
         },
         {
+          "id": "9e534d28-f520-44f7-a148-27d11fa21bce",
+          "name": "Normalize address to USPS Pub 28 form",
+          "request": {
+            "name": "Normalize address to USPS Pub 28 form",
+            "description": {
+              "content": "Parse-only USPS Publication 28 normalization (no geocoding). Directionals as N/S/E/W/NE/NW/SE/SW, standard suffixes, units, state, ZIP. Send q (freeform) or address/address2/city/state/zip/country.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "normalize"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [
+                {
+                  "disabled": false,
+                  "key": "address",
+                  "value": "123 Stewart Street Northwest",
+                  "description": "Address line 1 (or use q for a freeform address)"
+                },
+                {
+                  "disabled": false,
+                  "key": "address2",
+                  "value": "apartment 4",
+                  "description": "Address line 2 (unit)"
+                },
+                {
+                  "disabled": false,
+                  "key": "city",
+                  "value": "Huntsville",
+                  "description": ""
+                },
+                {
+                  "disabled": false,
+                  "key": "state",
+                  "value": "Alabama",
+                  "description": "Full name or 2-letter code"
+                },
+                {
+                  "disabled": false,
+                  "key": "zip",
+                  "value": "35801",
+                  "description": ""
+                },
+                {
+                  "disabled": true,
+                  "key": "q",
+                  "value": "123 Stewart Street Northwest, Huntsville AL 35801",
+                  "description": "Freeform alternative to the structured fields"
+                }
+              ],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "GET",
+            "auth": null
+          },
+          "response": [],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
           "id": "5ac335b3-7bd3-4b1c-8073-1cddafc47f54",
           "name": "Compare two addresses",
           "request": {
@@ -3568,6 +3639,53 @@
               "_postman_previewlanguage": "json"
             }
           ],
+          "event": [],
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          }
+        },
+        {
+          "id": "4da3b5e8-9b80-40a3-a3ef-efa0eb2bb729",
+          "name": "Batch normalize addresses to USPS Pub 28 form",
+          "request": {
+            "name": "Batch normalize addresses to USPS Pub 28 form",
+            "description": {
+              "content": "Normalize up to 1,000 addresses per request. Items are freeform strings or objects {id,address,address2,city,state,zip,country}; id is echoed back. Billed per address.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "normalize"
+              ],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"addresses\": [\n    {\n      \"id\": \"row-1\",\n      \"address\": \"123 Stewart Street Northwest\",\n      \"city\": \"Huntsville\",\n      \"state\": \"Alabama\",\n      \"zip\": \"35801\"\n    },\n    \"309 S W Stewart Hwy, Columbus OH 43215\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "headerLanguage": "json"
+                }
+              }
+            }
+          },
+          "response": [],
           "event": [],
           "protocolProfileBehavior": {
             "disableBodyPruning": true
