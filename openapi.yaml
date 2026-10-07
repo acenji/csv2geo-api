@@ -782,6 +782,11 @@ paths:
         Each item is a freeform string or an object `{id, address, address2, city, state, zip, country}`
         (or `{id, q}`); `id` is echoed back on the matching result. Results are returned in request order.
         Billed per address. See `GET /normalize` for the rules.
+
+        One bad row never fails the batch: a row that cannot be read (for example a field of the wrong type, other than a numeric
+        `zip`, which is accepted and treated as text) is returned as `ok: false` with `reason` = `invalid_item` and its `id`;
+        the other rows are normalized as usual. Invalid ZIPs, invalid states and oversize fields are reported in `warnings`
+        and never altered.
       operationId: normalizeBatch
       requestBody:
         required: true
@@ -797,7 +802,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BatchNormalizeResponse'
         '400':
-          description: Bad request (missing, empty, or more than 1,000 items)
+          description: Bad request (body is not JSON, or `addresses` is missing, empty, or has more than 1,000 items)
           content:
             application/json:
               schema:
@@ -4681,10 +4686,17 @@ components:
           type: array
           items: {type: string}
           description: Human-readable list of what was fixed
+        warnings:
+          type: array
+          items: {type: string}
+          description: |
+            Always present (empty when clean). Problems the service found but did NOT change, e.g. `invalid_zip: 49503-32ND`,
+            `invalid_state: ZZ`, or an unusually long field. The values are returned exactly as received; the row stays `ok: true`
+            with `confidence` capped at `medium` and `reason` set to the first problem.
         reason:
           type: string
           description: Set when the row is not a complete street address
-          enum: [empty, po_box, rural_route, no_house_number, no_street_name, unparseable, non_us_not_normalized]
+          enum: [empty, po_box, rural_route, no_house_number, no_street_name, unparseable, non_us_not_normalized, invalid_zip, invalid_state, oversize_city, oversize_address_line, oversize_input, invalid_item]
         confidence:
           type: string
           enum: [high, medium, low, none]

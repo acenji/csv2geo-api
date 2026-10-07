@@ -4,6 +4,17 @@ All notable changes to the CSV2GEO API are documented here. Format follows [Keep
 
 The CSV2GEO API service is versioned by URL path (`/v1/…`); this file tracks new endpoints, response-shape additions, and breaking changes.
 
+## [Sprint normalize 2] — 2026-10-07 — `/v1/normalize`: per-row errors and invalid-input warnings
+
+### Changed (additive; existing fields are unchanged)
+- Every result row now carries `warnings` (always present, empty when clean).
+- Invalid ZIPs (not 5 digits, e.g. `49503-32ND`), invalid states (not a USPS code) and oversize fields are **flagged, never altered**: new `reason` values `invalid_zip`, `invalid_state`, `oversize_city`, `oversize_address_line`, `oversize_input`; the row stays `ok: true` with `confidence` capped at `medium`. Before, `99999-99AA` was returned as `ok: true` with `confidence: high`.
+- `POST /v1/normalize`: a wrong-typed field in one row no longer fails the whole batch with HTTP 400. That row is returned as `ok: false`, `reason: invalid_item`, with its `id`; a numeric `zip` is accepted and treated as text. HTTP 400 remains for a body that is not JSON and for a missing, empty or over-1,000 `addresses` list.
+- Billing is unchanged: 0.5 credit per submitted address on `POST` (rows that come back `ok: false` are billed too), 1 credit for `GET`.
+
+### Verified
+- Live on both geocoders 2026-10-07; before/after probes show `49503-32ND` flagged `invalid_zip` and a batch with a numeric `zip` returning 200 with every row normalized.
+
 ## [Sprint normalize] — 2026-10-06 — `/v1/normalize`: parse-only USPS Pub 28 address normalization
 
 ### Added
