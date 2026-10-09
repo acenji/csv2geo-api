@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0-green.svg)](openapi.yaml)
-[![Addresses](https://img.shields.io/badge/addresses-504M%2B-orange.svg)](https://csv2geo.com)
+[![Addresses](https://img.shields.io/badge/addresses-744M%2B-orange.svg)](https://csv2geo.com)
 [![Countries](https://img.shields.io/badge/countries-41-blue.svg)](https://csv2geo.com/batchgeocoding)
 
 Official API documentation, SDKs, and examples for [CSV2GEO](https://csv2geo.com) — the batch geocoding platform with **504 million+ addresses** across **63 countries**.
@@ -12,8 +12,8 @@ Official API documentation, SDKs, and examples for [CSV2GEO](https://csv2geo.com
 CSV2GEO is a geocoding service that converts street addresses to geographic coordinates (latitude/longitude) and coordinates back to addresses. It is built on [Overture Maps Foundation](https://overturemaps.org/) open data with rooftop-level accuracy.
 
 **Key facts:**
-- **504M+ addresses** indexed worldwide
-- **72M+ places** and points of interest
+- **744M+ addresses** indexed worldwide
+- **75M+ places** and points of interest
 - **4.6M+ boundaries** (administrative divisions)
 - **63 countries** with rooftop-level coverage
 - **Free tier**: 100 geocoded rows per day, no credit card required

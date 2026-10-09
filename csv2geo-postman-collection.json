@@ -3894,7 +3894,7 @@
       "id": "70b319fb-da86-47e2-876f-ebafa33f77c2",
       "name": "Places",
       "description": {
-        "content": "Search 72M+ POIs - businesses, landmarks, restaurants, and more",
+        "content": "Search 75M+ POIs - businesses, landmarks, restaurants, and more",
         "type": "text/plain"
       },
       "item": [
@@ -7709,7 +7709,7 @@
     "name": "CSV2GEO Geocoding API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {
-      "content": "## CSV2GEO Geocoding API\n\nThe most feature-rich geocoding API available. 18 endpoints covering address geocoding, reverse geocoding, places search, administrative divisions, and autocomplete.\n\n### Quick Start\n1. Get your free API key at [csv2geo.com/api-keys](https://csv2geo.com/api-keys)\n2. Set the `api_key` variable in this collection\n3. Try any endpoint — 1,000 free requests/day\n\n### Key Features\n- 461M+ rooftop addresses in 200+ countries\n- 72M+ places and points of interest\n- 4.6M+ administrative boundaries\n- Python SDK: `pip install csv2geo`\n- Node.js SDK: `npm install csv2geo-sdk`\n\n### Links\n- [Website](https://csv2geo.com)\n- [API Documentation](https://csv2geo.com/api/geocoding)\n- [GitHub](https://github.com/acenji/csv2geo-api)\n- [Blog](https://csv2geo.com/blog)",
+      "content": "## CSV2GEO Geocoding API\n\nThe most feature-rich geocoding API available. 18 endpoints covering address geocoding, reverse geocoding, places search, administrative divisions, and autocomplete.\n\n### Quick Start\n1. Get your free API key at [csv2geo.com/api-keys](https://csv2geo.com/api-keys)\n2. Set the `api_key` variable in this collection\n3. Try any endpoint — 1,000 free requests/day\n\n### Key Features\n- 461M+ rooftop addresses in 200+ countries\n- 75M+ places and points of interest\n- 4.6M+ administrative boundaries\n- Python SDK: `pip install csv2geo`\n- Node.js SDK: `npm install csv2geo-sdk`\n\n### Links\n- [Website](https://csv2geo.com)\n- [API Documentation](https://csv2geo.com/api/geocoding)\n- [GitHub](https://github.com/acenji/csv2geo-api)\n- [Blog](https://csv2geo.com/blog)",
       "type": "text/markdown"
     }
   }

@@ -54,7 +54,7 @@
       "_type": "request_group",
       "parentId": "wrk_csv2geo",
       "name": "Places",
-      "description": "Search 72M+ POIs - businesses, landmarks, restaurants, and more"
+      "description": "Search 75M+ POIs - businesses, landmarks, restaurants, and more"
     },
     {
       "_id": "fld_divisions",

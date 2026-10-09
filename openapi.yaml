@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: CSV2GEO Geocoding API
   description: |
-    Fast, accurate geocoding API powered by 514M+ addresses and 72M+ places worldwide.
+    Fast, accurate geocoding API powered by 744M+ addresses and 75M+ places worldwide.
 
     ## Features
     - Forward geocoding (address → coordinates)
@@ -10,7 +10,7 @@ info:
     - Address validation, parsing, and standardization
     - Autocomplete for type-ahead search
     - Batch processing (up to 10,000 addresses per request)
-    - **Places API** - Search 72M+ POIs (businesses, landmarks, restaurants)
+    - **Places API** - Search 75M+ POIs (businesses, landmarks, restaurants)
     - **Divisions API** - 4.6M+ administrative boundaries (cities, counties, neighborhoods)
     - **Utilities** - Timezone lookup, distance calculations
     - Global coverage across 63 countries with rooftop-level accuracy
@@ -78,7 +78,7 @@ tags:
   - name: Batch
     description: Batch processing for multiple addresses or coordinates
   - name: Places
-    description: Search 72M+ POIs - businesses, landmarks, restaurants, and more
+    description: Search 75M+ POIs - businesses, landmarks, restaurants, and more
   - name: Divisions
     description: 4.6M+ administrative boundaries - cities, counties, neighborhoods, states
   - name: Coverage
