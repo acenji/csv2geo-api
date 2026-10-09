@@ -2,6 +2,11 @@
 
 All notable changes to the Node SDK are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the package is published to npm as [`csv2geo-sdk`](https://www.npmjs.com/package/csv2geo-sdk).
 
+## [1.18.1] — 2026-10-09 — Package description only
+
+### Changed
+- Package description updated to the current coverage (744M+ addresses, 63 countries). No code or API changes.
+
 ## [1.18.0] — 2026-10-06 — Address normalization (`/v1/normalize`)
 
 ### Added
